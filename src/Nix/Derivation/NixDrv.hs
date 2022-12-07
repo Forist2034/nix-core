@@ -6,7 +6,10 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Nix.Derivation.NixDrv
-  ( NixStr,
+  ( -- reexport Derivation
+    NixDerivArg,
+    module D,
+    NixStr,
     (</>),
     externalDep,
     NixDrv,
@@ -29,6 +32,7 @@ import qualified Data.Text as T
 import GHC.Generics (Generic)
 import Nix.Atoms
 import Nix.Derivation
+import Nix.Derivation as D hiding (BuildResult, Derivation, StorePath) -- for reexport
 import Nix.Expr.Types
 import Nix.Expr.Types.Annotated
 import Nix.Hash
@@ -69,6 +73,8 @@ mkBuiltin v = mkSelect (mkSym "builtins") [v]
 
 mkCall :: NExpr -> NExpr -> NExpr
 mkCall a v = Fix (NBinary NApp a v)
+
+type NixDerivArg = DerivationArg NixStr (Derivation NixDrv)
 
 -- | string components (in reverse order)
 newtype NixStr = NixStr [Antiquoted Text NExpr]
