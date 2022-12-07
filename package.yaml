@@ -1,0 +1,21 @@
+name: nix-core
+version: 0.1.0.0
+author: "Jose Lane"
+maintainer: dariankline@outlook.com
+
+ghc-options:
+  - -Wall
+  - -Wcompat
+  - -Widentities
+  - -Wincomplete-record-updates
+  - -Wincomplete-uni-patterns
+  - -Wmissing-export-lists
+  - -Wmissing-home-modules
+  - -Wpartial-fields
+  - -Wredundant-constraints
+
+dependencies:
+  - base >= 4.7 && < 5
+
+library:
+  source-dirs: src
