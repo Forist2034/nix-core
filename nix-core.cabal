@@ -12,12 +12,25 @@ build-type:     Simple
 
 library
   exposed-modules:
-      Lib
+      Nix.Derivation
+      Nix.Derivation.NixDrv
+      Nix.Hash
+      Nix.System
   other-modules:
-      Paths_nix_core
+      Nix.Internal.System
   hs-source-dirs:
       src
+  default-extensions:
+      OverloadedStrings
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       base >=4.7 && <5
+    , data-default >=0.7 && <1
+    , data-fix >=0.3 && <1
+    , hashable >=1.3 && <2
+    , hnix >=0.16 && <1
+    , mtl >=2.2 && <3
+    , prettyprinter >=1.7 && <2
+    , text >=1.2 && <2
+    , unordered-containers >=0.2 && <1
   default-language: Haskell2010

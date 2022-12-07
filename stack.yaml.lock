@@ -3,7 +3,35 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/lock_files
 
-packages: []
+packages:
+- completed:
+    hackage: hnix-0.16.0@sha256:b70b9dd55ec597da8cee95ddc2b3bb0c63f4ccedd075caae5784a7d7934d4b0b,21558
+    pantry-tree:
+      sha256: e45f25c6ebcd2e93fc39d496ea951358f5c573248ecc841fec1c10142bdb8946
+      size: 27664
+  original:
+    hackage: hnix-0.16.0@sha256:b70b9dd55ec597da8cee95ddc2b3bb0c63f4ccedd075caae5784a7d7934d4b0b,21558
+- completed:
+    hackage: hnix-store-core-0.5.0.0@sha256:16084729c4df762f438bd0f564b17d9555a2ce53c172af357de35dec8c81c747,3112
+    pantry-tree:
+      sha256: 9f00fbd53def0f62e484fd30c99194042f39f7681c6d102a6e79c219506a8b7c
+      size: 1987
+  original:
+    hackage: hnix-store-core-0.5.0.0@sha256:16084729c4df762f438bd0f564b17d9555a2ce53c172af357de35dec8c81c747,3112
+- completed:
+    hackage: hnix-store-remote-0.5.0.0@sha256:98938101cbf9e5d8287e5f2abdf6461b46972b4d92987cf8634273913feef65c,2297
+    pantry-tree:
+      sha256: 923086b57c31bf738eabdf2ec1e57d4f36b30013801797e6a0f356b238782a5f
+      size: 1116
+  original:
+    hackage: hnix-store-remote-0.5.0.0@sha256:98938101cbf9e5d8287e5f2abdf6461b46972b4d92987cf8634273913feef65c,2297
+- completed:
+    hackage: algebraic-graphs-0.5@sha256:6eeec5ed1687ff7aa916e7bf9f02f51aaabde6f314dc0b7b1a84156974d7da73,8071
+    pantry-tree:
+      sha256: cca4a0348bb126506cacd8436948a68aad62e75d45df8c71f4090a00e69b45ee
+      size: 4128
+  original:
+    hackage: algebraic-graphs-0.5@sha256:6eeec5ed1687ff7aa916e7bf9f02f51aaabde6f314dc0b7b1a84156974d7da73,8071
 snapshots:
 - completed:
     sha256: 6d1532d40621957a25bad5195bfca7938e8a06d923c91bc52aa0f3c41181f2d4

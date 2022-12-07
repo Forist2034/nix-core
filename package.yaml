@@ -1,6 +1,7 @@
 name: nix-core
 version: 0.1.0.0
 author: "Jose Lane"
+license: MIT
 maintainer: dariankline@outlook.com
 
 ghc-options:
@@ -14,8 +15,21 @@ ghc-options:
   - -Wpartial-fields
   - -Wredundant-constraints
 
+default-extensions:
+  - OverloadedStrings
+
 dependencies:
   - base >= 4.7 && < 5
+  - text >= 1.2 && < 2
+  - hashable >= 1.3 && < 2
+  - unordered-containers >= 0.2 && < 1
+  - mtl >= 2.2 && < 3
+  - hnix >= 0.16 && < 1
+  - prettyprinter >= 1.7 && < 2
+  - data-fix >= 0.3 && < 1
+  - data-default >= 0.7 && < 1
 
 library:
   source-dirs: src
+  other-modules:
+    - Nix.Internal.System
