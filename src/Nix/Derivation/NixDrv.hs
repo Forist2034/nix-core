@@ -10,7 +10,7 @@ module Nix.Derivation.NixDrv
     (</>),
     externalDep,
     NixDrv,
-    StorePath (..),
+    StorePath,
     Derivation,
     BuildResult (..),
   )
@@ -217,6 +217,7 @@ instance MonadDeriv NixDrv where
         [ Antiquoted $
             mkCall (mkCall (mkBuiltin "toFile") (mkStr n)) (mkStr v)
         ]
+  pathToStr = pathStr
   storePath d o =
     Dep
       ( tell (HS.singleton d)

@@ -57,5 +57,6 @@ class (Monad m) => MonadDeriv m where
   data BuildResult m
   derivation :: m (DerivationArg (DrvStr m) (Derivation m)) -> Derivation m
   addFile :: Text -> Text -> StorePath m
+  pathToStr :: StorePath m -> DrvStr m
   storePath :: Derivation m -> Text -> m (StorePath m)
   build :: Derivation m -> BuildResult m

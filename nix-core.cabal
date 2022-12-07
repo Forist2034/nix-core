@@ -8,6 +8,8 @@ name:           nix-core
 version:        0.1.0.0
 author:         Jose Lane
 maintainer:     dariankline@outlook.com
+license:        MIT
+license-file:   LICENSE
 build-type:     Simple
 
 library
