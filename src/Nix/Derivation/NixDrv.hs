@@ -16,6 +16,9 @@ module Nix.Derivation.NixDrv
     StorePath,
     Derivation,
     BuildResult (..),
+    PkgTree (..),
+    buildPkgTree,
+    buildPkgSet,
   )
 where
 
@@ -73,6 +76,12 @@ mkBuiltin v = mkSelect (mkSym "builtins") [v]
 
 mkCall :: NExpr -> NExpr -> NExpr
 mkCall a v = Fix (NBinary NApp a v)
+
+mkName :: (Hashable a) => Text -> a -> Text
+mkName base v =
+  base
+    <> "_"
+    <> T.pack (showHex (fromIntegral (hash v) :: Word) "")
 
 type NixDerivArg = DerivationArg NixStr (Derivation NixDrv)
 
@@ -164,11 +173,14 @@ buildDrvArg d =
           )
     )
 
-collectDeps :: Derivation NixDrv -> (HashSet HsDerivation, HashSet Text)
+type Deps = (HashSet HsDerivation, HashSet Text)
+
+mergeDep :: Deps -> Deps -> Deps
+mergeDep (ab, ad) (bb, bd) = (HS.union ab bb, HS.union ad bd)
+
+collectDeps :: Derivation NixDrv -> Deps
 collectDeps (DrvHs self@(HsDrv {drvDepends = dep})) =
   HS.foldr (mergeDep . collectDeps) (HS.singleton self, HS.empty) dep
-  where
-    mergeDep (ab, ad) (bb, bd) = (HS.union ab bb, HS.union ad bd)
 collectDeps (DrvExt (ExtDep {extFrom = f})) = (HS.empty, HS.singleton f)
 
 data HsDerivation = HsDrv
@@ -180,6 +192,9 @@ data HsDerivation = HsDrv
 
 instance Hashable HsDerivation
 
+buildHsDrv :: HsDerivation -> Binding NExpr
+buildHsDrv d = mkBind (drvId d) (buildDrvArg (drvInfo d))
+
 data ExternalDep = ExtDep {extFrom :: Text, extPath :: [Text]}
   deriving (Show, Eq, Generic)
 
@@ -187,6 +202,13 @@ instance Hashable ExternalDep
 
 externalDep :: Text -> [Text] -> Derivation NixDrv
 externalDep from = DrvExt . ExtDep from
+
+extDepExpr :: ExternalDep -> NExpr
+extDepExpr e = mkSelect (mkSym (extFrom e)) (extPath e)
+
+-- | build expr like {dep1, dep2, .. depn} : body
+extDepAbs :: [Text] -> NExpr -> NExpr
+extDepAbs ext body = if null ext then body else mkAbs ext body
 
 mkNixMod :: NExpr -> BuildResult NixDrv
 mkNixMod = NixMod . renderStrict . layoutPretty defaultLayoutOptions . prettyNix
@@ -209,10 +231,7 @@ instance MonadDeriv NixDrv where
      in DrvHs
           ( HsDrv
               { drvInfo = drv,
-                drvId =
-                  drvName drv
-                    <> "_"
-                    <> T.pack (showHex (fromIntegral (hash drv) :: Word) ""),
+                drvId = mkName (drvName drv) drv,
                 drvDepends =
                   HS.union dep (HS.fromList (snd <$> drvDependent drv))
               }
@@ -237,7 +256,7 @@ instance MonadDeriv NixDrv where
                                 if o `elem` drvOutputs info
                                   then mkSym i
                                   else error (concat ["Derivation ", T.unpack i, " doesn't has output ", T.unpack o])
-                              DrvExt e -> mkSelect (mkSym (extFrom e)) (extPath e)
+                              DrvExt e -> extDepExpr e
                           )
                           [o, "outPath"]
                       )
@@ -248,14 +267,51 @@ instance MonadDeriv NixDrv where
     let (builds, extern) = collectDeps (DrvHs drv)
         body =
           mkSelect
-            (Fix $ NSet Recursive (toNix <$> HS.toList builds))
+            (Fix $ NSet Recursive (buildHsDrv <$> HS.toList builds))
             [drvId drv]
-     in mkNixMod
-          ( if HS.null extern
-              then body
-              else mkAbs (HS.toList extern) body
-          )
-    where
-      toNix d = mkBind (drvId d) (buildDrvArg (drvInfo d))
-  build (DrvExt (ExtDep {extFrom = f, extPath = i})) =
-    mkNixMod (mkAbs [f] (mkSelect (mkSym f) i))
+     in mkNixMod (extDepAbs (HS.toList extern) body)
+  build (DrvExt e@(ExtDep {extFrom = f})) =
+    mkNixMod (mkAbs [f] (extDepExpr e))
+
+data PkgTree
+  = PkgLeaf (NEL.NonEmpty Text) (Derivation NixDrv)
+  | PkgBranch (NEL.NonEmpty Text) [PkgTree]
+
+buildPkgTree :: [PkgTree] -> BuildResult NixDrv
+buildPkgTree pt =
+  mkNixMod
+    ( extDepAbs
+        (HS.toList externs)
+        ( wrapFix $
+            NLet
+              [mkBind hsPkg hsBody]
+              (Fix $ NSet NonRecursive (fmap buildTree pt))
+        )
+    )
+  where
+    collectDepsTL = foldr (\i d -> mergeDep d (collectDepsT i)) (HS.empty, HS.empty)
+    collectDepsT (PkgLeaf _ d) = collectDeps d
+    collectDepsT (PkgBranch _ ds) = collectDepsTL ds
+
+    (builds, externs) = collectDepsTL pt
+    hsBody = Fix $ NSet Recursive (buildHsDrv <$> HS.toList builds)
+    hsPkg = mkName "pkgs_hs" hsBody
+    pkgSym = mkSym hsPkg
+
+    mkBinding k v =
+      NamedVar
+        (StaticKey . VarName <$> k)
+        v
+        (SourcePos "<generated>" (mkPos 1) (mkPos 1))
+    buildTree (PkgLeaf p d) =
+      mkBinding
+        p
+        ( case d of
+            DrvHs dh -> mkSelect pkgSym [drvId dh]
+            DrvExt e -> extDepExpr e
+        )
+    buildTree (PkgBranch p ts) =
+      mkBinding p (Fix $ NSet NonRecursive (buildTree <$> ts))
+
+buildPkgSet :: [(Text, Derivation NixDrv)] -> BuildResult NixDrv
+buildPkgSet = buildPkgTree . fmap (\(i, d) -> PkgLeaf (NEL.singleton i) d)
