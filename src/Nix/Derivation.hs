@@ -81,5 +81,5 @@ class
   derivation :: m (DerivationArg (DrvStr m) (Derivation m)) -> Derivation m
   addFile :: Text -> Text -> StorePath m
   pathToStr :: StorePath m -> DrvStr m
-  storePath :: Derivation m -> Text -> m (StorePath m)
+  storePathOf :: Derivation m -> Maybe Text -> m (StorePath m)
   build :: Derivation m -> BuildResult m

@@ -247,7 +247,7 @@ instance MonadDeriv NixDrv where
             mkCall (mkCall (mkBuiltin "toFile") (mkStr n)) (mkStr v)
         ]
   pathToStr = pathStr
-  storePath d o =
+  storePathOf d mo =
     Dep
       ( tell (HS.singleton d)
           >> return
@@ -257,12 +257,15 @@ instance MonadDeriv NixDrv where
                       ( mkSelect
                           ( case d of
                               DrvHs (HsDrv {drvId = i, drvInfo = info}) ->
-                                if o `elem` drvOutputs info
-                                  then mkSym i
-                                  else error (concat ["Derivation ", T.unpack i, " doesn't has output ", T.unpack o])
+                                case mo of
+                                  Just o ->
+                                    if o `elem` drvOutputs info
+                                      then mkSym i
+                                      else error (concat ["Derivation ", T.unpack i, " doesn't has output ", T.unpack o])
+                                  Nothing -> mkSym i
                               DrvExt e -> extDepExpr e
                           )
-                          [o, "outPath"]
+                          (maybe ["outPath"] (: ["outPath"]) mo)
                       )
                   ]
             )
