@@ -34,12 +34,11 @@ class
   (Monad m, IsDrvStr (DrvStr m), DrvValue (StorePath m), DrvValue (Derivation m)) =>
   MonadDeriv m
   where
-  type DrvStr m
+  data DrvStr m
   data StorePath m
   data Derivation m
   data BuildResult m
   derivation :: m (DerivationArg m) -> Derivation m
-  addFile :: Text -> Text -> StorePath m
   pathToStr :: StorePath m -> DrvStr m
   storePathOf :: Derivation m -> Maybe Text -> m (StorePath m)
   build :: Derivation m -> BuildResult m
