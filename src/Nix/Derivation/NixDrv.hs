@@ -239,7 +239,7 @@ instance MonadDeriv NixDrv where
                                   else error (concat ["Derivation ", T.unpack i, " doesn't has output ", T.unpack o])
                               DrvExt e -> mkSelect (mkSym (extFrom e)) (extPath e)
                           )
-                          [o <> "Path"]
+                          [o, "outPath"]
                       )
                   ]
             )
