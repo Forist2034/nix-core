@@ -138,7 +138,7 @@ buildDrvArg d =
                     fmap
                       ( second
                           ( \case
-                              DrvHs (HsDrv {drvId = i}) -> mkStr i
+                              DrvHs (HsDrv {drvId = i}) -> mkSym i
                               DrvExt (ExtDep {extPath = i, extFrom = f}) -> mkSelect (mkSym f) i
                           )
                       )
