@@ -83,7 +83,7 @@ mkName base v =
     <> "_"
     <> T.pack (showHex (fromIntegral (hash v) :: Word) "")
 
-type NixDerivArg = DerivationArg NixStr (Derivation NixDrv)
+type NixDerivArg = DerivationArg NixDrv
 
 -- | string components (in reverse order)
 newtype NixStr = NixStr [Antiquoted Text NExpr]
@@ -117,7 +117,7 @@ instance IsDrvStr NixStr where
 strToExpr :: NixStr -> NExpr
 strToExpr (NixStr f) = wrapFix $ NStr (DoubleQuoted (reverse f))
 
-buildDrvArg :: DerivationArg NixStr (Derivation NixDrv) -> NExpr
+buildDrvArg :: DerivationArg NixDrv -> NExpr
 buildDrvArg d =
   mkCall
     (mkBuiltin "derivation")
@@ -187,7 +187,7 @@ collectDeps (DrvHs self@(HsDrv {drvDepends = dep})) =
 collectDeps (DrvExt (ExtDep {extFrom = f})) = (HS.empty, HS.singleton f)
 
 data HsDerivation = HsDrv
-  { drvInfo :: DerivationArg NixStr (Derivation NixDrv),
+  { drvInfo :: DerivationArg NixDrv,
     drvId :: Text,
     drvDepends :: HashSet (Derivation NixDrv)
   }

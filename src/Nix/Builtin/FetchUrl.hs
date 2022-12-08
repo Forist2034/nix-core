@@ -1,5 +1,5 @@
 module Nix.Builtin.FetchUrl
-  ( FetchUrlArg (..),
+  ( FetchUrlArg (name, url, hashAlgo, outputHash, isExecutable, unpack),
     defFetchUrlArg,
     BuiltinFetchUrl (..),
   )

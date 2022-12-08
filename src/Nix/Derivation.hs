@@ -1,11 +1,10 @@
 {-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Nix.Derivation
-  ( DerivationArg (..),
-    defaultDrvArg,
+  ( DerivationArg,
+    module D,
     IsDrvStr (..),
     (</>),
     MonadDeriv (..),
@@ -15,56 +14,11 @@ module Nix.Derivation
   )
 where
 
-import Data.Default (Default (def))
 import Data.Hashable (Hashable)
-import qualified Data.List.NonEmpty as NEL
 import Data.String (IsString)
 import Data.Text (Text)
-import GHC.Generics (Generic)
-import Nix.Hash
-import Nix.Internal.System (System)
-
-data DerivationArg txt d = DerivationArg
-  { drvName :: Text,
-    drvBuilder :: txt,
-    drvSystem :: System,
-    drvArgs :: [txt],
-    drvEnv, drvPassAsFile :: [(Text, txt)],
-    drvOutputs :: NEL.NonEmpty Text,
-    drvHashMode :: HashMode,
-    drvHashAlgo :: HashAlgo,
-    drvHash :: Maybe Hash,
-    drvAllowedReferences,
-    drvAllowedRequisites,
-    drvDisallowedReferences,
-    drvDisallowedRequisites ::
-      Maybe [d],
-    drvPreferLocalBuild, drvAllowSubstitutes :: Bool
-  }
-  deriving (Show, Eq, Generic)
-
-instance (Hashable txt, Hashable d) => Hashable (DerivationArg txt d)
-
-defaultDrvArg :: Text -> txt -> System -> DerivationArg txt d
-defaultDrvArg n b s =
-  DerivationArg
-    { drvName = n,
-      drvBuilder = b,
-      drvSystem = s,
-      drvArgs = [],
-      drvEnv = [],
-      drvPassAsFile = [],
-      drvOutputs = NEL.singleton "out",
-      drvHashMode = def,
-      drvHashAlgo = def,
-      drvHash = Nothing,
-      drvAllowedReferences = Nothing,
-      drvAllowedRequisites = Nothing,
-      drvDisallowedReferences = Nothing,
-      drvDisallowedRequisites = Nothing,
-      drvPreferLocalBuild = False,
-      drvAllowSubstitutes = True
-    }
+import Nix.Internal.Derivation as D hiding (DerivationArg)
+import qualified Nix.Internal.Derivation as ID
 
 type DrvValue m = (Eq m, Hashable m, Show m)
 
@@ -74,6 +28,8 @@ class (IsString m, Monoid m, DrvValue m) => IsDrvStr m where
 (</>) :: (IsDrvStr m) => m -> m -> m
 l </> r = l <> "/" <> r
 
+type DerivationArg m = ID.DerivationArg (DrvStr m) (Derivation m)
+
 class
   (Monad m, IsDrvStr (DrvStr m), DrvValue (StorePath m), DrvValue (Derivation m)) =>
   MonadDeriv m
@@ -82,7 +38,7 @@ class
   data StorePath m
   data Derivation m
   data BuildResult m
-  derivation :: m (DerivationArg (DrvStr m) (Derivation m)) -> Derivation m
+  derivation :: m (DerivationArg m) -> Derivation m
   addFile :: Text -> Text -> StorePath m
   pathToStr :: StorePath m -> DrvStr m
   storePathOf :: Derivation m -> Maybe Text -> m (StorePath m)

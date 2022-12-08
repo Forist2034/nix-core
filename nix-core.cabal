@@ -18,6 +18,7 @@ library
       Nix.Derivation
       Nix.Derivation.NixDrv
       Nix.Hash
+      Nix.Internal.Derivation
       Nix.System
   other-modules:
       Nix.Internal.System
