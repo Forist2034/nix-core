@@ -10,6 +10,7 @@ module Nix.Derivation.NixDrv
     NixDerivArg,
     module D,
     NixStr,
+    fromText,
     (</>),
     externalDep,
     NixDrv,
@@ -34,12 +35,13 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
 import Nix.Atoms
+import Nix.Builtin.FetchUrl
 import Nix.Derivation
-import Nix.Derivation as D hiding (BuildResult, Derivation, StorePath) -- for reexport
+import Nix.Derivation as D hiding (BuildResult, Derivation, StorePath)
 import Nix.Expr.Types
 import Nix.Expr.Types.Annotated
 import Nix.Hash
-import Nix.Internal.System (systemName)
+import Nix.Internal.System
 import Nix.Pretty
 import Numeric (showHex)
 import Prettyprinter
@@ -108,6 +110,9 @@ instance Semigroup NixStr where
 
 instance Monoid NixStr where
   mempty = NixStr []
+
+fromText :: Text -> NixStr
+fromText t = NixStr [Plain t]
 
 (</>) :: NixStr -> NixStr -> NixStr
 l </> r = l <> "/" <> r
@@ -315,3 +320,22 @@ buildPkgTree pt =
 
 buildPkgSet :: [(Text, Derivation NixDrv)] -> BuildResult NixDrv
 buildPkgSet = buildPkgTree . fmap (\(i, d) -> PkgLeaf (NEL.singleton i) d)
+
+instance BuiltinFetchUrl NixDrv where
+  fetchUrl fa =
+    derivation $
+      return
+        (defaultDrvArg (name fa) "builtin:fetchurl" (System "builtin"))
+          { drvEnv =
+              [ ("url", fromText (url fa)),
+                ("executable", fromBool (isExecutable fa)),
+                ("unpack", fromBool (unpack fa)),
+                ("urls", fromText (url fa))
+              ],
+            drvPreferLocalBuild = True,
+            drvHash = Just (outputHash fa),
+            drvHashMode = if isExecutable fa || unpack fa then HashRecursive else HashFlat,
+            drvHashAlgo = hashAlgo fa
+          }
+    where
+      fromBool v = if v then "1" else ""
