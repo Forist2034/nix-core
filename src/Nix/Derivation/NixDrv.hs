@@ -222,6 +222,8 @@ newtype NixDrv a = Dep {unDep :: Writer (HashSet (Derivation NixDrv)) a}
 instance MonadDeriv NixDrv where
   type DrvStr NixDrv = NixStr
   newtype StorePath NixDrv = SP {pathStr :: NixStr}
+    deriving (Eq, Show)
+    deriving newtype (Hashable)
   data Derivation NixDrv
     = DrvHs HsDerivation
     | DrvExt ExternalDep

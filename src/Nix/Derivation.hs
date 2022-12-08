@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -61,13 +62,18 @@ defaultDrvArg n b s =
       drvAllowSubstitutes = True
     }
 
-class (IsString m, Monoid m, Eq m, Hashable m, Show m) => IsDrvStr m where
+type DrvValue m = (Eq m, Hashable m, Show m)
+
+class (IsString m, Monoid m, DrvValue m) => IsDrvStr m where
   fromText :: Text -> m
 
 (</>) :: (IsDrvStr m) => m -> m -> m
 l </> r = l <> "/" <> r
 
-class (Monad m, IsDrvStr (DrvStr m)) => MonadDeriv m where
+class
+  (Monad m, IsDrvStr (DrvStr m), DrvValue (StorePath m), DrvValue (Derivation m)) =>
+  MonadDeriv m
+  where
   type DrvStr m
   data StorePath m
   data Derivation m
