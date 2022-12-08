@@ -28,6 +28,11 @@ data DerivationArg txt d = DerivationArg
     drvHashMode :: HashMode,
     drvHashAlgo :: HashAlgo,
     drvHash :: Maybe Hash,
+    drvAllowedReferences,
+    drvAllowedRequisites,
+    drvDisallowedReferences,
+    drvDisallowedRequisites ::
+      Maybe [d],
     drvPreferLocalBuild, drvAllowSubstitutes :: Bool
   }
   deriving (Show, Eq, Generic)
@@ -48,6 +53,10 @@ defaultDrvArg n b s =
       drvHashMode = def,
       drvHashAlgo = def,
       drvHash = Nothing,
+      drvAllowedReferences = Nothing,
+      drvAllowedRequisites = Nothing,
+      drvDisallowedReferences = Nothing,
+      drvDisallowedRequisites = Nothing,
       drvPreferLocalBuild = False,
       drvAllowSubstitutes = True
     }

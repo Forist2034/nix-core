@@ -135,14 +135,7 @@ buildDrvArg d =
                       ("system", mkStr (systemName (drvSystem d)))
                     ],
                     [("args", mkList (strToExpr <$> drvArgs d)) | not (null (drvArgs d))],
-                    fmap
-                      ( second
-                          ( \case
-                              DrvHs (HsDrv {drvId = i}) -> mkSym i
-                              DrvExt (ExtDep {extPath = i, extFrom = f}) -> mkSelect (mkSym f) i
-                          )
-                      )
-                      (drvDependent d),
+                    fmap (second drvExpr) (drvDependent d),
                     fmap (second strToExpr) (drvEnv d ++ drvPassAsFile d),
                     [ ("passAsFile", mkList (mkStr . fst <$> drvPassAsFile d))
                       | not (null (drvPassAsFile d))
@@ -164,12 +157,15 @@ buildDrvArg d =
                           )
                       )
                     ],
-                    maybe
-                      []
+                    maybeField
                       ( \case
                           Hash h -> [("outputHash", mkStr h)]
                       )
                       (drvHash d),
+                    depField "allowedReferences" (drvAllowedReferences d),
+                    depField "allowedRequisites" (drvAllowedRequisites d),
+                    depField "disallowedReferences" (drvDisallowedReferences d),
+                    depField "disallowedRequisites" (drvDisallowedRequisites d),
                     [ ("preferLocalBuild", mkBool (drvPreferLocalBuild d)),
                       ("allowSubstitutes", mkBool (drvAllowSubstitutes d))
                     ]
@@ -177,6 +173,12 @@ buildDrvArg d =
               )
           )
     )
+  where
+    drvExpr (DrvHs (HsDrv {drvId = i})) = mkSym i
+    drvExpr (DrvExt (ExtDep {extPath = i, extFrom = f})) = mkSelect (mkSym f) i
+
+    maybeField = maybe []
+    depField n = maybeField (\f -> [(n, mkList (fmap drvExpr f))])
 
 type Deps = (HashSet HsDerivation, HashSet Text)
 
