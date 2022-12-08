@@ -2,6 +2,7 @@ module Nix.Builtin.FetchUrl
   ( FetchUrlArg (name, url, hashAlgo, outputHash, isExecutable, unpack),
     defFetchUrlArg,
     BuiltinFetchUrl (..),
+    fetchUrlStr,
   )
 where
 
@@ -30,3 +31,6 @@ defFetchUrlArg n u a h =
 
 class (MonadDeriv m) => BuiltinFetchUrl m where
   fetchUrl :: FetchUrlArg -> Derivation m
+
+fetchUrlStr :: BuiltinFetchUrl m => FetchUrlArg -> m (DrvStr m)
+fetchUrlStr f = storePathStr (fetchUrl f)
