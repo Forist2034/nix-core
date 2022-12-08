@@ -9,6 +9,9 @@ module Nix.Derivation
     IsDrvStr (..),
     (</>),
     MonadDeriv (..),
+    storePathStrOf,
+    storePath,
+    storePathStr,
   )
 where
 
@@ -83,3 +86,12 @@ class
   pathToStr :: StorePath m -> DrvStr m
   storePathOf :: Derivation m -> Maybe Text -> m (StorePath m)
   build :: Derivation m -> BuildResult m
+
+storePathStrOf :: MonadDeriv m => Derivation m -> Maybe Text -> m (DrvStr m)
+storePathStrOf d o = pathToStr <$> storePathOf d o
+
+storePath :: MonadDeriv m => Derivation m -> m (StorePath m)
+storePath d = storePathOf d Nothing
+
+storePathStr :: MonadDeriv m => Derivation m -> m (DrvStr m)
+storePathStr d = pathToStr <$> storePath d
