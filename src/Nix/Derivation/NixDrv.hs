@@ -136,7 +136,7 @@ buildDrvArg d =
                     [ ("passAsFile", mkList (mkStr . fst <$> drvPassAsFile d))
                       | not (null (drvPassAsFile d))
                     ],
-                    [("outputs", mkList (mkStr <$> drvOutputs d)) | not (null (drvOutputs d))],
+                    [("outputs", mkList (NEL.toList (mkStr <$> drvOutputs d))) | not (null (drvOutputs d))],
                     [ ( "outputHashMode",
                         mkStr
                           ( case drvHashMode d of

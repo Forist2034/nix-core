@@ -17,6 +17,7 @@ where
 
 import Data.Default (Default (def))
 import Data.Hashable (Hashable)
+import qualified Data.List.NonEmpty as NEL
 import Data.String (IsString)
 import Data.Text (Text)
 import GHC.Generics (Generic)
@@ -29,7 +30,7 @@ data DerivationArg txt d = DerivationArg
     drvSystem :: System,
     drvArgs :: [txt],
     drvEnv, drvPassAsFile :: [(Text, txt)],
-    drvOutputs :: [Text],
+    drvOutputs :: NEL.NonEmpty Text,
     drvHashMode :: HashMode,
     drvHashAlgo :: HashAlgo,
     drvHash :: Maybe Hash,
@@ -53,7 +54,7 @@ defaultDrvArg n b s =
       drvArgs = [],
       drvEnv = [],
       drvPassAsFile = [],
-      drvOutputs = ["out"],
+      drvOutputs = NEL.singleton "out",
       drvHashMode = def,
       drvHashAlgo = def,
       drvHash = Nothing,
