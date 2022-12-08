@@ -10,8 +10,6 @@ module Nix.Derivation.NixDrv
     NixDerivArg,
     module D,
     NixStr,
-    fromText,
-    (</>),
     externalDep,
     NixDrv,
     StorePath,
@@ -94,7 +92,8 @@ newtype NixStr = NixStr [Antiquoted Text NExpr]
 instance Hashable NixStr
 
 instance IsString NixStr where
-  fromString s = NixStr [Plain (fromString s)]
+  fromString s = NixStr [Plain (T.pack s)]
+  {-# INLINE fromString #-}
 
 instance Semigroup NixStr where
   NixStr l@(l1 : ls) <> NixStr r@(_ : _) =
@@ -111,11 +110,9 @@ instance Semigroup NixStr where
 instance Monoid NixStr where
   mempty = NixStr []
 
-fromText :: Text -> NixStr
-fromText t = NixStr [Plain t]
-
-(</>) :: NixStr -> NixStr -> NixStr
-l </> r = l <> "/" <> r
+instance IsDrvStr NixStr where
+  fromText t = NixStr [Plain t]
+  {-# INLINE fromText #-}
 
 strToExpr :: NixStr -> NExpr
 strToExpr (NixStr f) = wrapFix $ NStr (DoubleQuoted (reverse f))

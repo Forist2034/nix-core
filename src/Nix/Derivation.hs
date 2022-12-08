@@ -5,6 +5,8 @@
 module Nix.Derivation
   ( DerivationArg (..),
     defaultDrvArg,
+    IsDrvStr (..),
+    (</>),
     MonadDeriv (..),
   )
 where
@@ -61,7 +63,13 @@ defaultDrvArg n b s =
       drvAllowSubstitutes = True
     }
 
-class (Monad m, IsString (DrvStr m)) => MonadDeriv m where
+class (IsString m, Monoid m, Eq m, Hashable m, Show m) => IsDrvStr m where
+  fromText :: Text -> m
+
+(</>) :: (IsDrvStr m) => m -> m -> m
+l </> r = l <> "/" <> r
+
+class (Monad m, IsDrvStr (DrvStr m)) => MonadDeriv m where
   type DrvStr m
   data StorePath m
   data Derivation m
