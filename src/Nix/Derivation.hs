@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Nix.Derivation
@@ -10,6 +11,7 @@ where
 
 import Data.Default (Default (def))
 import Data.Hashable (Hashable)
+import Data.String (IsString)
 import Data.Text (Text)
 import GHC.Generics (Generic)
 import Nix.Hash
@@ -50,7 +52,7 @@ defaultDrvArg n b s =
       drvAllowSubstitutes = True
     }
 
-class (Monad m) => MonadDeriv m where
+class (Monad m, IsString (DrvStr m)) => MonadDeriv m where
   type DrvStr m
   data StorePath m
   data Derivation m
