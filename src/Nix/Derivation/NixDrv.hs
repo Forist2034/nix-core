@@ -132,7 +132,6 @@ buildDrvArg d =
                       ("system", mkStr (systemName (drvSystem d)))
                     ],
                     [("args", mkList (strToExpr <$> drvArgs d)) | not (null (drvArgs d))],
-                    fmap (second drvExpr) (drvDependent d),
                     fmap (second strToExpr) (drvEnv d ++ drvPassAsFile d),
                     [ ("passAsFile", mkList (mkStr . fst <$> drvPassAsFile d))
                       | not (null (drvPassAsFile d))
@@ -236,8 +235,7 @@ instance MonadDeriv NixDrv where
           ( HsDrv
               { drvInfo = drv,
                 drvId = mkName (drvName drv) drv,
-                drvDepends =
-                  HS.union dep (HS.fromList (snd <$> drvDependent drv))
+                drvDepends = dep
               }
           )
   addFile n v =
