@@ -215,7 +215,11 @@ buildExtDep e =
 
     extDepAbsSym = mkSym extDepAbs
 
-data FileDerivation = FileDrv {fileName, fileContent :: Text, fileId :: Text}
+data FileDerivation = FileDrv
+  { fileName :: Text,
+    fileContent :: DrvStr NixDrv,
+    fileId :: Text
+  }
   deriving (Show, Eq, Generic)
 
 instance Hashable FileDerivation
@@ -230,7 +234,7 @@ fileDrvExpr :: FileDerivation -> NExpr
 fileDrvExpr f = filesSym @. fileId f
 
 fileExpr :: FileDerivation -> NExpr
-fileExpr f = mkBuiltin "toFile" @@ mkStr (fileName f) @@ mkStr (fileContent f)
+fileExpr f = mkBuiltin "toFile" @@ mkStr (fileName f) @@ strToExpr (fileContent f)
 
 buildFileDrv :: [FileDerivation] -> Maybe (Binding NExpr)
 buildFileDrv [] = Nothing
@@ -258,11 +262,11 @@ groupDep (dh : dt) =
         DrvExt v -> (h, v : e, f)
         DrvFile v -> (h, e, v : f)
 
-buildDrvs :: [NixDeriv] -> (NExpr -> NExpr, [Binding NExpr])
+buildDrvs :: [NixDeriv] -> (NExpr -> NExpr, NExpr)
 buildDrvs deps =
   let (hs, ext, file) = groupDep (HS.toList (collectDepsL HS.empty deps))
       (f, extB) = buildExtDep ext
-   in (f, catMaybes [extB, buildFileDrv file, buildHsPkgs hs])
+   in (f, mkRecSet (catMaybes [extB, buildFileDrv file, buildHsPkgs hs]))
 
 mkNixMod :: NExpr -> BuildResult NixDrv
 mkNixMod = NixMod . renderStrict . layoutPretty defaultLayoutOptions . prettyNix
@@ -319,7 +323,7 @@ instance MonadDeriv NixDrv where
 
   build self@(DrvHs drv) =
     let (f, bs) = buildDrvs [self]
-     in mkNixMod (f (mkSelect (mkRecSet bs) [hsPkgsVar, drvId drv]))
+     in mkNixMod (f (mkSelect bs [hsPkgsVar, drvId drv]))
   build (DrvExt (ExtDep {extFrom = f, extPath = p})) =
     mkNixMod (mkParamSet [(f, Nothing)] ==> mkSelect (mkSym f) p)
   build (DrvFile f) =
@@ -333,12 +337,22 @@ buildPkgTree :: [PkgTree] -> BuildResult NixDrv
 buildPkgTree pt =
   mkNixMod
     ( let (f, b) = buildDrvs (HS.toList (collectDepsTL pt))
-       in f (mkLets b (mkNonRecSet (fmap buildTree pt)))
+       in f
+            ( letE
+                pkgsVar
+                b
+                ( mkWith
+                    (mkSym pkgsVar)
+                    (mkNonRecSet (fmap buildTree pt))
+                )
+            )
     )
   where
     collectDepsTL = foldr (HS.union . collectDepsT) HS.empty
     collectDepsT (PkgLeaf _ d) = collectDeps d
     collectDepsT (PkgBranch _ ds) = collectDepsTL ds
+
+    pkgsVar = "pkgs"
 
     mkBinding k v =
       NamedVar
