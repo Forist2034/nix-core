@@ -166,7 +166,7 @@ buildHsPkgs [] = Nothing
 buildHsPkgs ds =
   Just
     ( hsPkgsVar
-        $= mkNonRecSet (fmap (\d -> drvId d $= buildDrvArg (drvInfo d)) ds)
+        $= mkRecSet (fmap (\d -> drvId d $= buildDrvArg (drvInfo d)) ds)
     )
 
 data ExternalDep = ExtDep {extFrom :: Text, extPath :: [Text], extId :: Text}
