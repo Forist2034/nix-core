@@ -1,4 +1,4 @@
-module Nix.Builtin.AddFile
+module HsNix.Builtin.AddFile
   ( BuiltinAddFile (..),
     addText,
     addFileStr,
@@ -7,7 +7,7 @@ module Nix.Builtin.AddFile
 where
 
 import Data.Text (Text)
-import Nix.Derivation
+import HsNix.Derivation
 
 class (MonadDeriv m) => BuiltinAddFile m where
   addFile :: Text -> DrvStr m -> m (StorePath m)

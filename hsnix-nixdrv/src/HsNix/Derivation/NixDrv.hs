@@ -5,9 +5,8 @@
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
-module Nix.Derivation.NixDrv
+module HsNix.Derivation.NixDrv
   ( -- reexport Derivation
     NixDerivArg,
     module D,
@@ -34,15 +33,15 @@ import Data.String
 import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
-import Nix.Builtin.AddFile
-import Nix.Builtin.FetchUrl
-import Nix.Derivation
-import Nix.Derivation as D hiding (BuildResult, Derivation, StorePath)
+import HsNix.Builtin.AddFile
+import HsNix.Builtin.FetchUrl
+import HsNix.Derivation
+import HsNix.Derivation as D hiding (BuildResult, Derivation, StorePath)
+import HsNix.Hash
+import HsNix.Internal.System
 import Nix.Expr.Shorthands
 import Nix.Expr.Types
 import Nix.Expr.Types.Annotated
-import Nix.Hash
-import Nix.Internal.System
 import Nix.Pretty
 import Numeric (showHex)
 import Prettyprinter

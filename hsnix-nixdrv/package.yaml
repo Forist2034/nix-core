@@ -1,4 +1,4 @@
-name: nix-core
+name: hsnix-nixdrv
 version: 0.1.0.0
 author: "Jose Lane"
 license: MIT
@@ -27,9 +27,7 @@ dependencies:
   - hnix >= 0.16 && < 1
   - prettyprinter >= 1.7 && < 2
   - data-fix >= 0.3 && < 1
-  - data-default >= 0.7 && < 1
+  - hsnix-core
 
 library:
   source-dirs: src
-  other-modules:
-    - Nix.Internal.System

@@ -2,7 +2,8 @@ resolver:
   url: https://github.com/commercialhaskell/stackage-snapshots/raw/master/lts/19/33.yaml
 
 packages:
-  - .
+  - ./hsnix-core
+  - ./hsnix-nixdrv
 
 extra-deps:
   - hnix-0.16.0@sha256:b70b9dd55ec597da8cee95ddc2b3bb0c63f4ccedd075caae5784a7d7934d4b0b,21558

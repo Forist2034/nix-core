@@ -1,10 +1,5 @@
-module Nix.Internal.System
-  ( System (..),
-    systemName,
-    x86_64_linux,
-    i686_linux,
-  )
-where
+module HsNix.Internal.System(System(..), 
+  systemName,x86_64_linux,i686_linux) where
 
 import Data.Hashable
 import Data.Text (Text)

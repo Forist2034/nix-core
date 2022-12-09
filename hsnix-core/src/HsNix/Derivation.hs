@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Nix.Derivation
+module HsNix.Derivation
   ( DerivationArg,
     module D,
     IsDrvStr (..),
@@ -17,8 +17,8 @@ where
 import Data.Hashable (Hashable)
 import Data.String (IsString)
 import Data.Text (Text)
-import Nix.Internal.Derivation as D hiding (DerivationArg)
-import qualified Nix.Internal.Derivation as ID
+import HsNix.Internal.Derivation as D hiding (DerivationArg)
+import qualified HsNix.Internal.Derivation as ID
 
 type DrvValue m = (Eq m, Hashable m, Show m)
 

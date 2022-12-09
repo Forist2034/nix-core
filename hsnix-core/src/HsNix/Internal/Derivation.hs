@@ -1,14 +1,13 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module Nix.Internal.Derivation (DerivationArg (..), defaultDrvArg) where
+module HsNix.Internal.Derivation (DerivationArg (..), defaultDrvArg) where
 
-import Data.Default
 import Data.Hashable (Hashable)
 import qualified Data.List.NonEmpty as NEL
 import Data.Text (Text)
 import GHC.Generics (Generic)
-import Nix.Hash
-import Nix.Internal.System
+import HsNix.Hash
+import HsNix.System
 
 data DerivationArg txt d = DerivationArg
   { drvName :: Text,
@@ -41,8 +40,8 @@ defaultDrvArg n b s =
       drvEnv = [],
       drvPassAsFile = [],
       drvOutputs = NEL.singleton "out",
-      drvHashMode = def,
-      drvHashAlgo = def,
+      drvHashMode = HashRecursive,
+      drvHashAlgo = HashSha256,
       drvHash = Nothing,
       drvAllowedReferences = Nothing,
       drvAllowedRequisites = Nothing,

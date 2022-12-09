@@ -1,4 +1,4 @@
-module Nix.Builtin.FetchUrl
+module HsNix.Builtin.FetchUrl
   ( FetchUrlArg (name, url, hashAlgo, outputHash, isExecutable, unpack),
     defFetchUrlArg,
     BuiltinFetchUrl (..),
@@ -7,8 +7,8 @@ module Nix.Builtin.FetchUrl
 where
 
 import Data.Text (Text)
-import Nix.Derivation
-import Nix.Hash
+import HsNix.Derivation
+import HsNix.Hash
 
 data FetchUrlArg = FetchUrlArg
   { name, url :: Text,
