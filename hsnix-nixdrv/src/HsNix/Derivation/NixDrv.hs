@@ -29,7 +29,6 @@ import qualified Data.HashSet as HS
 import Data.Hashable
 import qualified Data.List.NonEmpty as NEL
 import Data.Maybe (catMaybes)
-import Data.String
 import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
@@ -66,31 +65,19 @@ mkId base v =
 
 type NixDerivArg = DerivationArg NixDrv
 
-instance IsString (DrvStr NixDrv) where
-  fromString s = NixStr [Plain (T.pack s)]
-  {-# INLINE fromString #-}
-
-instance Semigroup (DrvStr NixDrv) where
-  NixStr l@(l1 : ls) <> NixStr r@(_ : _) =
-    let r1 = last r
-        rs = init r
-     in NixStr
-          ( case (l1, r1) of
-              (Plain pl, Plain pr) -> rs ++ (Plain (pl <> pr) : ls)
-              _ -> r ++ l
-          )
-  NixStr [] <> NixStr r = NixStr r
-  NixStr l <> NixStr [] = NixStr l
-
-instance Monoid (DrvStr NixDrv) where
-  mempty = NixStr []
-
-instance IsDrvStr (DrvStr NixDrv) where
-  fromText t = NixStr [Plain t]
-  {-# INLINE fromText #-}
-
 strToExpr :: DrvStr NixDrv -> NExpr
-strToExpr (NixStr f) = wrapFix $ NStr (DoubleQuoted (reverse f))
+strToExpr (DStr f) =
+  wrapFix $
+    NStr
+      ( DoubleQuoted
+          ( fmap
+              ( \case
+                  Str s -> Plain s
+                  Drv (SP e) -> Antiquoted e
+              )
+              f
+          )
+      )
 
 type NixDeriv = Derivation NixDrv
 
@@ -147,12 +134,8 @@ buildDrvArg d =
           ]
       )
   where
-    drvExpr (DrvHs (HsDrv {drvId = i})) = mkSym i
-    drvExpr (DrvExt e) = extDepExpr e
-    drvExpr (DrvFile f) = fileDrvExpr f
-
     maybeField = maybe []
-    depField n = maybeField (\f -> [n $= mkList (fmap drvExpr f)])
+    depField n = maybeField (\f -> [n $= mkList (fmap strToExpr f)])
 
 hsPkgsVar :: Text
 hsPkgsVar = "hs-packages"
@@ -274,11 +257,7 @@ newtype NixDrv a = Dep {unDep :: Writer (HashSet (Derivation NixDrv)) a}
   deriving newtype (Functor, Applicative, Monad)
 
 instance MonadDeriv NixDrv where
-  -- string components (in reverse order)
-  newtype DrvStr NixDrv = NixStr [Antiquoted Text NExpr]
-    deriving (Show, Eq, Generic)
-    deriving newtype (Hashable)
-  newtype StorePath NixDrv = SP {pathStr :: DrvStr NixDrv}
+  newtype StorePath NixDrv = SP {pathExp :: NExpr}
     deriving (Eq, Show)
     deriving newtype (Hashable)
   data Derivation NixDrv
@@ -298,12 +277,11 @@ instance MonadDeriv NixDrv where
                 drvDepends = dep
               }
           )
-  pathToStr = pathStr
   storePathOf d mo =
     Dep
       ( tell (HS.singleton d)
           >> return
-            (SP $ NixStr [Antiquoted (expr d)])
+            (SP (expr d))
       )
     where
       selectOut p =
@@ -378,10 +356,10 @@ instance BuiltinFetchUrl NixDrv where
       return
         (defaultDrvArg (name fa) "builtin:fetchurl" (System "builtin"))
           { drvEnv =
-              [ ("url", fromText (url fa)),
+              [ ("url", toDrvStr (url fa)),
                 ("executable", fromBool (isExecutable fa)),
                 ("unpack", fromBool (unpack fa)),
-                ("urls", fromText (url fa))
+                ("urls", toDrvStr (url fa))
               ],
             drvPreferLocalBuild = True,
             drvHash = Just (outputHash fa),

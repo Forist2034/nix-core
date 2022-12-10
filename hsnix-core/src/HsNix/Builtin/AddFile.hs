@@ -13,10 +13,10 @@ class (MonadDeriv m) => BuiltinAddFile m where
   addFile :: Text -> DrvStr m -> m (StorePath m)
 
 addText :: (BuiltinAddFile m) => Text -> Text -> m (StorePath m)
-addText n c = addFile n (fromText c)
+addText n c = addFile n (toDrvStr c)
 
 addFileStr :: BuiltinAddFile m => Text -> DrvStr m -> m (DrvStr m)
-addFileStr n c = pathToStr <$> addFile n c
+addFileStr n c = toDrvStr <$> addFile n c
 
 addTextStr :: BuiltinAddFile m => Text -> Text -> m (DrvStr m)
-addTextStr n c = addFileStr n (fromText c)
+addTextStr n c = addFileStr n (toDrvStr c)

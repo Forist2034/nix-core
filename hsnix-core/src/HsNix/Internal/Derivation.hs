@@ -9,7 +9,7 @@ import GHC.Generics (Generic)
 import HsNix.Hash
 import HsNix.System
 
-data DerivationArg txt d = DerivationArg
+data DerivationArg txt = DerivationArg
   { drvName :: Text,
     drvBuilder :: txt,
     drvSystem :: System,
@@ -23,14 +23,14 @@ data DerivationArg txt d = DerivationArg
     drvAllowedRequisites,
     drvDisallowedReferences,
     drvDisallowedRequisites ::
-      Maybe [d],
+      Maybe [txt],
     drvPreferLocalBuild, drvAllowSubstitutes :: Bool
   }
   deriving (Show, Eq, Generic)
 
-instance (Hashable txt, Hashable d) => Hashable (DerivationArg txt d)
+instance (Hashable txt) => Hashable (DerivationArg txt)
 
-defaultDrvArg :: Text -> txt -> System -> DerivationArg txt d
+defaultDrvArg :: Text -> txt -> System -> DerivationArg txt
 defaultDrvArg n b s =
   DerivationArg
     { drvName = n,
