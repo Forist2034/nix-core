@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -12,6 +13,8 @@ module HsNix.Derivation
     module D,
     DrvStrSpan (..),
     DrvStr (..),
+    DrvStrBuilder,
+    fromDrvStr,
     AsDrvStr (..),
     (</>),
     MonadDeriv (..),
@@ -24,6 +27,8 @@ where
 import Data.Hashable (Hashable (hashWithSalt))
 import Data.String
 import Data.Text (Text)
+import qualified Data.Text.Lazy as LT
+import qualified Data.Text.Lazy.Builder as LTB
 import HsNix.Internal.Derivation as D hiding (DerivationArg)
 import qualified HsNix.Internal.Derivation as ID
 
@@ -62,14 +67,61 @@ instance Semigroup (DrvStr m) where
 instance Monoid (DrvStr m) where
   mempty = DStr []
 
-class (MonadDeriv m) => AsDrvStr s m where
+data SpanBuilder m
+  = SpanStr LTB.Builder
+  | SpanDrv (StorePath m)
+
+newtype DrvStrBuilder m = DB ([SpanBuilder m] -> [SpanBuilder m])
+
+instance IsString (DrvStrBuilder m) where
+  fromString s = DB (SpanStr (fromString s) :)
+  {-# INLINE fromString #-}
+
+instance Semigroup (DrvStrBuilder m) where
+  DB l <> DB r = DB (l . r)
+
+instance Monoid (DrvStrBuilder m) where
+  mempty = DB id
+
+fromDrvStr :: DrvStr m -> DrvStrBuilder m
+fromDrvStr (DStr s) =
+  DB
+    ( \back ->
+        foldr
+          ( \i ss -> case i of
+              Str st -> SpanStr (LTB.fromText st) : ss
+              Drv d -> SpanDrv d : ss
+          )
+          back
+          s
+    )
+
+class AsDrvStr s m where
   toDrvStr :: s -> DrvStr m
 
-instance (MonadDeriv m) => AsDrvStr Text m where
+instance AsDrvStr Text m where
   toDrvStr t = DStr [Str t]
 
-instance (MonadDeriv m) => AsDrvStr (StorePath m) m where
+instance AsDrvStr (StorePath m) m where
   toDrvStr t = DStr [Drv t]
+
+instance AsDrvStr (DrvStrBuilder m) m where
+  toDrvStr (DB db) =
+    DStr
+      ( fmap
+          ( \case
+              SpanStr s -> Str (LT.toStrict (LTB.toLazyText s))
+              SpanDrv d -> Drv d
+          )
+          (mergeT (db []))
+      )
+    where
+      mergeT [] = []
+      mergeT (d@(SpanDrv _) : ps) = d : mergeT ps
+      mergeT (SpanStr s : ps) =
+        case mergeT ps of
+          (SpanStr ss : pss) -> SpanStr (s <> ss) : pss
+          v -> SpanStr s : v
 
 (</>) :: (AsDrvStr t1 m, AsDrvStr t2 m) => t1 -> t2 -> DrvStr m
 l </> r = toDrvStr l <> "/" <> toDrvStr r
