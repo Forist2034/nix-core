@@ -8,7 +8,7 @@ module HsNix.Derivation
     module D,
     AsDrvStr (..),
     Quoted (..),
-    IsDrvStr (..),
+    HasStrBuilder (..),
     MonadDeriv (..),
     storePathStrOf,
     storePath,
@@ -36,21 +36,21 @@ data Quoted s
   | QEscape Char
 
 class
-  ( DrvValue m,
-    StrValue m,
-    AsDrvStr Text m,
-    StrValue (DrvStrBuilder m),
-    AsDrvStr (DrvStrBuilder m) m
+  ( StrValue (DrvStrBuilder m),
+    AsDrvStr (DrvStrBuilder m) (DrvStr m)
   ) =>
-  IsDrvStr m
+  HasStrBuilder m
   where
   data DrvStrBuilder m
-  fromDrvStr :: m -> DrvStrBuilder m
-  quote :: (Char -> Bool) -> m -> [Quoted m]
+  fromDrvStr :: DrvStr m -> DrvStrBuilder m
+  quote :: (Char -> Bool) -> DrvStr m -> [Quoted (DrvStr m)]
 
 class
   ( Monad m,
-    IsDrvStr (DrvStr m),
+    DrvValue (DrvStr m),
+    StrValue (DrvStr m),
+    AsDrvStr Text (DrvStr m),
+    HasStrBuilder m,
     DrvValue (StorePath m),
     AsDrvStr (StorePath m) (DrvStr m),
     DrvValue (Derivation m)

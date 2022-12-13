@@ -114,17 +114,17 @@ data SpanBuilder
   = SpanStr LTB.Builder
   | SpanDrv NExpr
 
-instance Semigroup (DrvStrBuilder NixStr) where
+instance Semigroup (DrvStrBuilder NixDrv) where
   DB l <> DB r = DB (l . r)
 
-instance Monoid (DrvStrBuilder NixStr) where
+instance Monoid (DrvStrBuilder NixDrv) where
   mempty = DB id
 
-instance IsString (DrvStrBuilder NixStr) where
+instance IsString (DrvStrBuilder NixDrv) where
   fromString s = DB (SpanStr (fromString s) :)
   {-# INLINE fromString #-}
 
-instance AsDrvStr (DrvStrBuilder NixStr) NixStr where
+instance AsDrvStr (DrvStrBuilder NixDrv) NixStr where
   toDrvStr (DB db) =
     DStr
       ( fmap
@@ -142,8 +142,8 @@ instance AsDrvStr (DrvStrBuilder NixStr) NixStr where
           (SpanStr ss : pss) -> SpanStr (s <> ss) : pss
           v -> SpanStr s : v
 
-instance IsDrvStr NixStr where
-  newtype DrvStrBuilder NixStr = DB ([SpanBuilder] -> [SpanBuilder])
+instance HasStrBuilder NixDrv where
+  newtype DrvStrBuilder NixDrv = DB ([SpanBuilder] -> [SpanBuilder])
   fromDrvStr (DStr s) =
     DB
       ( \back ->
