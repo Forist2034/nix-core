@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module HsNix.Derivation.NixDrv
@@ -12,6 +13,8 @@ module HsNix.Derivation.NixDrv
     module D,
     externalDep,
     NixDrv,
+    DrvStr,
+    DrvStrBuilder,
     StorePath,
     Derivation,
     BuildResult (..),
@@ -29,13 +32,22 @@ import qualified Data.HashSet as HS
 import Data.Hashable
 import qualified Data.List.NonEmpty as NEL
 import Data.Maybe (catMaybes)
+import Data.String
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as LT
+import qualified Data.Text.Lazy.Builder as LTB
 import GHC.Generics (Generic)
 import HsNix.Builtin.AddFile
 import HsNix.Builtin.FetchUrl
 import HsNix.Derivation
-import HsNix.Derivation as D hiding (BuildResult, Derivation, StorePath)
+import HsNix.Derivation as D hiding
+  ( BuildResult,
+    Derivation,
+    DrvStr,
+    DrvStrBuilder,
+    StorePath,
+  )
 import HsNix.Hash
 import HsNix.Internal.System
 import Nix.Expr.Shorthands
@@ -65,6 +77,100 @@ mkId base v =
 
 type NixDerivArg = DerivationArg NixDrv
 
+type NixStr = DrvStr NixDrv
+
+data DrvStrSpan
+  = Str Text
+  | Drv NExpr
+  deriving (Eq, Show, Generic)
+
+instance Hashable DrvStrSpan
+
+instance IsString NixStr where
+  fromString s = DStr [Str (fromString s)]
+  {-# INLINE fromString #-}
+
+instance AsDrvStr Text NixStr where
+  toDrvStr s = DStr [Str s]
+
+instance AsDrvStr (StorePath NixDrv) NixStr where
+  toDrvStr (SP s) = DStr [Drv s]
+
+instance Semigroup NixStr where
+  DStr [] <> r = r
+  l <> DStr [] = l
+  DStr l <> DStr r@(r1 : rs) =
+    let ll = last l
+     in DStr
+          ( case (ll, r1) of
+              (Str sl, Str sr) -> init l ++ Str (sl <> sr) : rs
+              _ -> l ++ r
+          )
+
+instance Monoid NixStr where
+  mempty = DStr []
+
+data SpanBuilder
+  = SpanStr LTB.Builder
+  | SpanDrv NExpr
+
+instance Semigroup (DrvStrBuilder NixStr) where
+  DB l <> DB r = DB (l . r)
+
+instance Monoid (DrvStrBuilder NixStr) where
+  mempty = DB id
+
+instance IsString (DrvStrBuilder NixStr) where
+  fromString s = DB (SpanStr (fromString s) :)
+  {-# INLINE fromString #-}
+
+instance AsDrvStr (DrvStrBuilder NixStr) NixStr where
+  toDrvStr (DB db) =
+    DStr
+      ( fmap
+          ( \case
+              SpanStr s -> Str (LT.toStrict (LTB.toLazyText s))
+              SpanDrv d -> Drv d
+          )
+          (mergeT (db []))
+      )
+    where
+      mergeT [] = []
+      mergeT (d@(SpanDrv _) : ps) = d : mergeT ps
+      mergeT (SpanStr s : ps) =
+        case mergeT ps of
+          (SpanStr ss : pss) -> SpanStr (s <> ss) : pss
+          v -> SpanStr s : v
+
+instance IsDrvStr NixStr where
+  newtype DrvStrBuilder NixStr = DB ([SpanBuilder] -> [SpanBuilder])
+  fromDrvStr (DStr s) =
+    DB
+      ( \back ->
+          foldr
+            ( \i ss -> case i of
+                Str st -> SpanStr (LTB.fromText st) : ss
+                Drv d -> SpanDrv d : ss
+            )
+            back
+            s
+      )
+  quote q (DStr st) =
+    foldMap
+      ( \case
+          Str s -> quoteStr s
+          Drv d -> [QStr (DStr [Drv d])]
+      )
+      st
+    where
+      quoteStr s
+        | T.null s = []
+        | otherwise =
+            let (h, t) = T.break q s
+             in case T.uncons t of
+                  Just (esc, ts) -> QStr (DStr [Str h]) : QEscape esc : quoteStr ts
+                  Nothing -> [QStr (DStr [Str h])]
+
 strToExpr :: DrvStr NixDrv -> NExpr
 strToExpr (DStr f) =
   wrapFix $
@@ -73,7 +179,7 @@ strToExpr (DStr f) =
           ( fmap
               ( \case
                   Str s -> Plain s
-                  Drv (SP e) -> Antiquoted e
+                  Drv e -> Antiquoted e
               )
               f
           )
@@ -257,6 +363,9 @@ newtype NixDrv a = Dep {unDep :: Writer (HashSet (Derivation NixDrv)) a}
   deriving newtype (Functor, Applicative, Monad)
 
 instance MonadDeriv NixDrv where
+  newtype DrvStr NixDrv = DStr [DrvStrSpan]
+    deriving (Eq, Show)
+    deriving newtype (Hashable)
   newtype StorePath NixDrv = SP {pathExp :: NExpr}
     deriving (Eq, Show)
     deriving newtype (Hashable)
