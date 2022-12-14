@@ -24,9 +24,11 @@ module HsNix.Derivation.NixDrv
   )
 where
 
+import Control.Monad.State
 import Control.Monad.Writer
 import Data.Bifunctor
 import Data.Fix
+import Data.Foldable (traverse_)
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as HS
 import Data.Hashable
@@ -333,13 +335,22 @@ buildFileDrv fs =
           (fmap (\f -> fileId f $= fileExpr f) fs)
     )
 
-collectDepsL :: (Foldable f) => HashSet NixDeriv -> f NixDeriv -> HashSet NixDeriv
-collectDepsL = foldr (HS.union . collectDeps)
+type DepM = State (HashSet NixDeriv)
 
-collectDeps :: Derivation NixDrv -> HashSet NixDeriv
+runDepM :: DepM a -> [NixDeriv]
+runDepM mv = HS.toList (execState mv HS.empty)
+
+collectDepsL :: Foldable f => f (Derivation NixDrv) -> DepM ()
+collectDepsL = traverse_ collectDeps
+
+collectDeps :: Derivation NixDrv -> DepM ()
 collectDeps self@(DrvHs (HsDrv {drvDepends = dep})) =
-  collectDepsL (HS.singleton self) dep
-collectDeps v = HS.singleton v
+  gets (HS.member self) >>= \case
+    True -> return ()
+    False ->
+      modify (HS.insert self)
+        >> collectDepsL dep
+collectDeps v = modify (HS.insert v)
 
 groupDep :: [NixDeriv] -> ([HsDerivation], [ExternalDep], [FileDerivation])
 groupDep [] = ([], [], [])
@@ -352,7 +363,7 @@ groupDep (dh : dt) =
 
 buildDrvs :: [NixDeriv] -> (NExpr -> NExpr, NExpr)
 buildDrvs deps =
-  let (hs, ext, file) = groupDep (HS.toList (collectDepsL HS.empty deps))
+  let (hs, ext, file) = groupDep (runDepM (collectDepsL deps))
       (f, extB) = buildExtDep ext
    in (f, mkRecSet (catMaybes [extB, buildFileDrv file, buildHsPkgs hs]))
 
@@ -422,7 +433,7 @@ data PkgTree
 buildPkgTree :: [PkgTree] -> BuildResult NixDrv
 buildPkgTree pt =
   mkNixMod
-    ( let (f, b) = buildDrvs (HS.toList (collectDepsTL pt))
+    ( let (f, b) = buildDrvs (runDepM (collectDepsTL pt))
        in f
             ( letE
                 pkgsVar
@@ -434,7 +445,7 @@ buildPkgTree pt =
             )
     )
   where
-    collectDepsTL = foldr (HS.union . collectDepsT) HS.empty
+    collectDepsTL = traverse_ collectDepsT
     collectDepsT (PkgLeaf _ d) = collectDeps d
     collectDepsT (PkgBranch _ ds) = collectDepsTL ds
 
