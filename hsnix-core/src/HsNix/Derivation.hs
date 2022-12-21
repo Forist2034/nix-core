@@ -19,6 +19,7 @@ where
 import Data.Hashable (Hashable)
 import Data.String
 import Data.Text (Text)
+import HsNix.Hash
 import HsNix.Internal.Derivation as D hiding (DerivationArg)
 import qualified HsNix.Internal.Derivation as ID
 
@@ -61,7 +62,7 @@ class
   data StorePath m
   data Derivation m
   data BuildResult m
-  derivation :: m (DerivationArg m) -> Derivation m
+  derivation :: NamedHashAlgo a => m (DerivationArg m a) -> Derivation m
   storePathOf :: Derivation m -> Maybe Text -> m (StorePath m)
   build :: Derivation m -> BuildResult m
 

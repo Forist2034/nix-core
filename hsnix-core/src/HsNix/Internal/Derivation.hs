@@ -14,22 +14,21 @@ import GHC.Generics (Generic)
 import HsNix.Hash
 import HsNix.System
 
-data DerivOutput
+data DerivOutput a
   = RegularOutput (NEL.NonEmpty Text)
-  | FixedOutput Hash
+  | FixedOutput (Hash a)
   deriving (Show, Eq, Generic)
 
-instance Hashable DerivOutput
+instance Hashable (DerivOutput a)
 
-data DerivationArg txt = DerivationArg
+data DerivationArg txt a = DerivationArg
   { drvName :: Text,
     drvBuilder :: txt,
     drvSystem :: System,
     drvArgs :: [txt],
     drvEnv, drvPassAsFile :: [(Text, txt)],
-    drvOutputs :: DerivOutput,
+    drvOutputs :: DerivOutput a,
     drvHashMode :: HashMode,
-    drvHashAlgo :: HashAlgo,
     drvAllowedReferences,
     drvAllowedRequisites,
     drvDisallowedReferences,
@@ -39,9 +38,9 @@ data DerivationArg txt = DerivationArg
   }
   deriving (Show, Eq, Generic)
 
-instance (Hashable txt) => Hashable (DerivationArg txt)
+instance (Hashable txt) => Hashable (DerivationArg txt a)
 
-defaultDrvArg :: Text -> txt -> System -> DerivationArg txt
+defaultDrvArg :: Text -> txt -> System -> DerivationArg txt a
 defaultDrvArg n b s =
   DerivationArg
     { drvName = n,
@@ -52,7 +51,6 @@ defaultDrvArg n b s =
       drvPassAsFile = [],
       drvOutputs = RegularOutput (NEL.singleton "out"),
       drvHashMode = HashRecursive,
-      drvHashAlgo = HashSha256,
       drvAllowedReferences = Nothing,
       drvAllowedRequisites = Nothing,
       drvDisallowedReferences = Nothing,

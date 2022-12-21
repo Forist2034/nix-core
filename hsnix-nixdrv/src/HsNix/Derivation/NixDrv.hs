@@ -5,6 +5,7 @@
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module HsNix.Derivation.NixDrv
@@ -34,6 +35,7 @@ import qualified Data.HashSet as HS
 import Data.Hashable
 import qualified Data.List.NonEmpty as NEL
 import Data.Maybe (catMaybes)
+import Data.Proxy
 import Data.String
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -190,7 +192,8 @@ strToExpr (DStr f) =
 type NixDeriv = Derivation NixDrv
 
 data HsDerivation = HsDrv
-  { drvInfo :: NixDerivArg,
+  { drvInfo :: NExpr,
+    drvOutputName :: Maybe (NEL.NonEmpty Text),
     drvId :: Text,
     drvDepends :: HashSet NixDeriv
   }
@@ -198,7 +201,7 @@ data HsDerivation = HsDrv
 
 instance Hashable HsDerivation
 
-buildDrvArg :: NixDerivArg -> NExpr
+buildDrvArg :: forall a. NamedHashAlgo a => NixDerivArg a -> NExpr
 buildDrvArg d =
   mkBuiltin "derivation"
     @@ mkNonRecSet
@@ -214,7 +217,7 @@ buildDrvArg d =
             ],
             [ case drvOutputs d of
                 RegularOutput os -> "outputs" $= mkList (NEL.toList (fmap mkStr os))
-                FixedOutput (Hash h) -> "outputHash" $= mkStr h
+                FixedOutput h -> "outputHash" $= mkStr (T.pack (show h))
             ],
             [ "outputHashMode"
                 $= mkStr
@@ -222,13 +225,7 @@ buildDrvArg d =
                       HashFlat -> "flat"
                       HashRecursive -> "recursive"
                   ),
-              "outputHashAlgo"
-                $= mkStr
-                  ( case drvHashAlgo d of
-                      HashSha1 -> "sha1"
-                      HashSha256 -> "sha256"
-                      HashSha512 -> "sha512"
-                  )
+              "outputHashAlgo" $= mkStr (hashAlgoName (Proxy :: Proxy a))
             ],
             depField "allowedReferences" (drvAllowedReferences d),
             depField "allowedRequisites" (drvAllowedRequisites d),
@@ -254,7 +251,7 @@ buildHsPkgs [] = Nothing
 buildHsPkgs ds =
   Just
     ( hsPkgsVar
-        $= mkRecSet (fmap (\d -> drvId d $= buildDrvArg (drvInfo d)) ds)
+        $= mkRecSet (fmap (\d -> drvId d $= drvInfo d) ds)
     )
 
 data ExternalDep = ExtDep {extFrom :: Text, extPath :: [Text], extId :: Text}
@@ -390,7 +387,10 @@ instance MonadDeriv NixDrv where
     let (drv, dep) = runWriter (unDep v)
      in DrvHs
           ( HsDrv
-              { drvInfo = drv,
+              { drvInfo = buildDrvArg drv,
+                drvOutputName = case drvOutputs drv of
+                  RegularOutput os -> Just os
+                  FixedOutput _ -> Nothing,
                 drvId = mkId (drvName drv) drv,
                 drvDepends = dep
               }
@@ -404,16 +404,16 @@ instance MonadDeriv NixDrv where
     where
       selectOut p =
         mkSelect p (maybe ["outPath"] (: ["outPath"]) mo)
-      expr (DrvHs (HsDrv {drvId = i, drvInfo = info})) =
+      expr (DrvHs (HsDrv {drvId = i, drvOutputName = dOut})) =
         selectOut
           ( case mo of
               Just o ->
-                case drvOutputs info of
-                  RegularOutput os ->
+                case dOut of
+                  Just os ->
                     if o `elem` os
                       then mkSym i
                       else error (concat ["Derivation ", T.unpack i, " doesn't has output ", T.unpack o])
-                  FixedOutput _ -> error "Not using default output name to get store path of fixed output"
+                  Nothing -> error "Not using default output name to get store path of fixed output"
               Nothing -> mkSym i
           )
       expr (DrvExt e) = selectOut (extDepExpr e)
@@ -484,8 +484,7 @@ instance BuiltinFetchUrl NixDrv where
               ],
             drvPreferLocalBuild = True,
             drvOutputs = FixedOutput (outputHash fa),
-            drvHashMode = if isExecutable fa || unpack fa then HashRecursive else HashFlat,
-            drvHashAlgo = hashAlgo fa
+            drvHashMode = if isExecutable fa || unpack fa then HashRecursive else HashFlat
           }
     where
       fromBool v = if v then "1" else ""

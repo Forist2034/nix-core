@@ -1,30 +1,33 @@
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
+
 module HsNix.Hash
-  ( HashAlgo (..),
+  ( NamedHashAlgo (..),
+    SHA1,
+    SHA256,
+    SHA512,
     HashMode (..),
     Hash (..),
   )
 where
 
+import Crypto.Hash
+import Data.ByteArray.Hash
 import Data.Hashable
+import Data.Proxy
 import Data.Text (Text)
 
-data HashAlgo
-  = HashSha1
-  | HashSha256
-  | HashSha512
-  deriving (Show, Eq)
+class (HashAlgorithm a) => NamedHashAlgo a where
+  hashAlgoName :: Proxy a -> Text
 
-instance Hashable HashAlgo where
-  hashWithSalt s v =
-    hashWithSalt
-      s
-      ( ( case v of
-            HashSha1 -> 0
-            HashSha256 -> 1
-            HashSha512 -> 2
-        ) ::
-          Int
-      )
+instance NamedHashAlgo SHA1 where
+  hashAlgoName _ = "sha1"
+
+instance NamedHashAlgo SHA256 where
+  hashAlgoName _ = "sha256"
+
+instance NamedHashAlgo SHA512 where
+  hashAlgoName _ = "sha512"
 
 data HashMode
   = HashFlat
@@ -34,8 +37,11 @@ data HashMode
 instance Hashable HashMode where
   hashWithSalt s v = hashWithSalt s (v == HashFlat)
 
-newtype Hash = Hash Text
-  deriving (Show, Eq)
+newtype Hash a = Hash (Digest a)
+  deriving (Eq)
+  deriving newtype (Show, Read)
 
-instance Hashable Hash where
-  hashWithSalt s (Hash h) = hashWithSalt s h
+instance Hashable (Hash a) where
+  hashWithSalt _ (Hash a) =
+    case fnv1Hash a of
+      FnvHash32 w -> fromIntegral w

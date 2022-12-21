@@ -1,5 +1,5 @@
 module HsNix.Builtin.FetchUrl
-  ( FetchUrlArg (name, url, hashAlgo, outputHash, isExecutable, unpack),
+  ( FetchUrlArg (name, url, outputHash, isExecutable, unpack),
     defFetchUrlArg,
     BuiltinFetchUrl (..),
     fetchUrlStr,
@@ -10,27 +10,25 @@ import Data.Text (Text)
 import HsNix.Derivation
 import HsNix.Hash
 
-data FetchUrlArg = FetchUrlArg
+data FetchUrlArg a = FetchUrlArg
   { name, url :: Text,
-    hashAlgo :: HashAlgo,
-    outputHash :: Hash,
+    outputHash :: Hash a,
     isExecutable, unpack :: Bool
   }
   deriving (Eq, Show)
 
-defFetchUrlArg :: Text -> Text -> HashAlgo -> Hash -> FetchUrlArg
-defFetchUrlArg n u a h =
+defFetchUrlArg :: Text -> Text -> Hash a -> FetchUrlArg a
+defFetchUrlArg n u h =
   FetchUrlArg
     { name = n,
       url = u,
-      hashAlgo = a,
       outputHash = h,
       isExecutable = False,
       unpack = False
     }
 
 class (MonadDeriv m) => BuiltinFetchUrl m where
-  fetchUrl :: FetchUrlArg -> Derivation m
+  fetchUrl :: NamedHashAlgo a => FetchUrlArg a -> Derivation m
 
-fetchUrlStr :: BuiltinFetchUrl m => FetchUrlArg -> m (DrvStr m)
+fetchUrlStr :: (BuiltinFetchUrl m, NamedHashAlgo a) => FetchUrlArg a -> m (DrvStr m)
 fetchUrlStr f = storePathStr (fetchUrl f)
