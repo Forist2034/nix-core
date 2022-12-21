@@ -1,22 +1,31 @@
 module HsNix.Builtin.AddFile
-  ( BuiltinAddFile (..),
-    addText,
-    addFileStr,
-    addTextStr,
+  ( BuiltinAddText (..),
+    addTextFileStr,
+    BuiltinAddBinary (..),
+    addBinFileStr,
+    BuiltinAddDrvStr (..),
+    addDStrStr,
   )
 where
 
+import Data.ByteString (ByteString)
 import Data.Text (Text)
 import HsNix.Derivation
 
-class (MonadDeriv m) => BuiltinAddFile m where
-  addFile :: Text -> DrvStr m -> m (StorePath m)
+class (MonadDeriv m) => BuiltinAddText m where
+  addTextFile :: Text -> Text -> m (StorePath m)
 
-addText :: (BuiltinAddFile m) => Text -> Text -> m (StorePath m)
-addText n c = addFile n (toDrvStr c)
+addTextFileStr :: BuiltinAddText m => Text -> Text -> m (DrvStr m)
+addTextFileStr n c = toDrvStr <$> addTextFile n c
 
-addFileStr :: BuiltinAddFile m => Text -> DrvStr m -> m (DrvStr m)
-addFileStr n c = toDrvStr <$> addFile n c
+class (MonadDeriv m) => BuiltinAddBinary m where
+  addBinaryFile :: Text -> ByteString -> m (StorePath m)
 
-addTextStr :: BuiltinAddFile m => Text -> Text -> m (DrvStr m)
-addTextStr n c = addFileStr n (toDrvStr c)
+addBinFileStr :: BuiltinAddBinary m => Text -> ByteString -> m (DrvStr m)
+addBinFileStr n b = toDrvStr <$> addBinaryFile n b
+
+class (MonadDeriv m) => BuiltinAddDrvStr m where
+  addDrvStr :: Text -> DrvStr m -> m (StorePath m)
+
+addDStrStr :: BuiltinAddDrvStr m => Text -> DrvStr m -> m (DrvStr m)
+addDStrStr n c = toDrvStr <$> addDrvStr n c
