@@ -307,7 +307,7 @@ buildExtDep e =
 
 data FileDerivation = FileDrv
   { fileName :: Text,
-    fileContent :: DrvStr NixDrv,
+    fileContent :: Text,
     fileId :: Text
   }
   deriving (Show, Eq, Generic)
@@ -324,7 +324,7 @@ fileDrvExpr :: FileDerivation -> NExpr
 fileDrvExpr f = filesSym @. fileId f
 
 fileExpr :: FileDerivation -> NExpr
-fileExpr f = mkBuiltin "toFile" @@ mkStr (fileName f) @@ strToExpr (fileContent f)
+fileExpr f = mkBuiltin "toFile" @@ mkStr (fileName f) @@ mkStr (fileContent f)
 
 buildFileDrv :: [FileDerivation] -> Maybe (Binding NExpr)
 buildFileDrv [] = Nothing
@@ -489,8 +489,8 @@ instance BuiltinFetchUrl NixDrv where
     where
       fromBool v = if v then "1" else ""
 
-instance BuiltinAddFile NixDrv where
-  addFile n c =
+instance BuiltinAddText NixDrv where
+  addTextFile n c =
     storePath
       ( DrvFile
           ( FileDrv
