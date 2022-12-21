@@ -1,6 +1,11 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module HsNix.Internal.Derivation (DerivationArg (..), defaultDrvArg) where
+module HsNix.Internal.Derivation
+  ( DerivOutput (..),
+    DerivationArg (..),
+    defaultDrvArg,
+  )
+where
 
 import Data.Hashable (Hashable)
 import qualified Data.List.NonEmpty as NEL
@@ -9,16 +14,22 @@ import GHC.Generics (Generic)
 import HsNix.Hash
 import HsNix.System
 
+data DerivOutput
+  = RegularOutput (NEL.NonEmpty Text)
+  | FixedOutput Hash
+  deriving (Show, Eq, Generic)
+
+instance Hashable DerivOutput
+
 data DerivationArg txt = DerivationArg
   { drvName :: Text,
     drvBuilder :: txt,
     drvSystem :: System,
     drvArgs :: [txt],
     drvEnv, drvPassAsFile :: [(Text, txt)],
-    drvOutputs :: NEL.NonEmpty Text,
+    drvOutputs :: DerivOutput,
     drvHashMode :: HashMode,
     drvHashAlgo :: HashAlgo,
-    drvHash :: Maybe Hash,
     drvAllowedReferences,
     drvAllowedRequisites,
     drvDisallowedReferences,
@@ -39,10 +50,9 @@ defaultDrvArg n b s =
       drvArgs = [],
       drvEnv = [],
       drvPassAsFile = [],
-      drvOutputs = NEL.singleton "out",
+      drvOutputs = RegularOutput (NEL.singleton "out"),
       drvHashMode = HashRecursive,
       drvHashAlgo = HashSha256,
-      drvHash = Nothing,
       drvAllowedReferences = Nothing,
       drvAllowedRequisites = Nothing,
       drvDisallowedReferences = Nothing,

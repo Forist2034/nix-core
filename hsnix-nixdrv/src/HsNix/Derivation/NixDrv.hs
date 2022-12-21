@@ -212,7 +212,10 @@ buildDrvArg d =
             [ "passAsFile" $= mkList (mkStr . fst <$> drvPassAsFile d)
               | not (null (drvPassAsFile d))
             ],
-            ["outputs" $= mkList (NEL.toList (mkStr <$> drvOutputs d)) | not (null (drvOutputs d))],
+            [ case drvOutputs d of
+                RegularOutput os -> "outputs" $= mkList (NEL.toList (fmap mkStr os))
+                FixedOutput (Hash h) -> "outputHash" $= mkStr h
+            ],
             [ "outputHashMode"
                 $= mkStr
                   ( case drvHashMode d of
@@ -227,11 +230,6 @@ buildDrvArg d =
                       HashSha512 -> "sha512"
                   )
             ],
-            maybeField
-              ( \case
-                  Hash h -> ["outputHash" $= mkStr h]
-              )
-              (drvHash d),
             depField "allowedReferences" (drvAllowedReferences d),
             depField "allowedRequisites" (drvAllowedRequisites d),
             depField "disallowedReferences" (drvDisallowedReferences d),
@@ -410,9 +408,12 @@ instance MonadDeriv NixDrv where
         selectOut
           ( case mo of
               Just o ->
-                if o `elem` drvOutputs info
-                  then mkSym i
-                  else error (concat ["Derivation ", T.unpack i, " doesn't has output ", T.unpack o])
+                case drvOutputs info of
+                  RegularOutput os ->
+                    if o `elem` os
+                      then mkSym i
+                      else error (concat ["Derivation ", T.unpack i, " doesn't has output ", T.unpack o])
+                  FixedOutput _ -> error "Not using default output name to get store path of fixed output"
               Nothing -> mkSym i
           )
       expr (DrvExt e) = selectOut (extDepExpr e)
@@ -482,7 +483,7 @@ instance BuiltinFetchUrl NixDrv where
                 ("urls", toDrvStr (url fa))
               ],
             drvPreferLocalBuild = True,
-            drvHash = Just (outputHash fa),
+            drvOutputs = FixedOutput (outputHash fa),
             drvHashMode = if isExecutable fa || unpack fa then HashRecursive else HashFlat,
             drvHashAlgo = hashAlgo fa
           }
