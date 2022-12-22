@@ -24,7 +24,7 @@ class (MonadDeriv m) => BuiltinAddBinary m where
 addBinFileStr :: BuiltinAddBinary m => Text -> ByteString -> m (DrvStr m)
 addBinFileStr n b = toDrvStr <$> addBinaryFile n b
 
-class (MonadDeriv m) => BuiltinAddDrvStr m where
+class (BuiltinAddText m) => BuiltinAddDrvStr m where
   addDrvStr :: Text -> DrvStr m -> m (StorePath m)
 
 addDStrStr :: BuiltinAddDrvStr m => Text -> DrvStr m -> m (DrvStr m)
