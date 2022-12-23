@@ -37,3 +37,4 @@ library:
   source-dirs: src
   other-modules:
     - HsNix.Derivation.Drv.Internal.Derivation
+    - HsNix.Derivation.Drv.Internal.Hash

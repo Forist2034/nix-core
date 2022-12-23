@@ -15,9 +15,9 @@ build-type:     Simple
 library
   exposed-modules:
       HsNix.Derivation.Drv.Instantiate
-      HsNix.Derivation.Drv.Internal.Hash
   other-modules:
       HsNix.Derivation.Drv.Internal.Derivation
+      HsNix.Derivation.Drv.Internal.Hash
   hs-source-dirs:
       src
   default-extensions:

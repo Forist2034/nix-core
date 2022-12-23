@@ -136,7 +136,11 @@ instance ND.MonadDeriv DrvInst where
                 (StorePathName spName)
                 (TE.encodeUtf8 drvText)
                 ref,
-            dM = addTextToStore spName drvText ref False,
+            dM = do
+              depM deps
+              sp <- addTextToStore spName drvText ref False
+              liftIO (putStrLn ("instantiate: Instantiated derivation " ++ show sp))
+              pure sp,
             dDefOut = case ND.drvOutputs d of
               ND.RegularOutput os -> NEL.head os
               ND.FixedOutput _ -> "out",
@@ -184,7 +188,13 @@ instance BuiltinAddText DrvInst where
      in DI
           ( tell
               Deps
-                { depM = void (addTextToStore n c HS.empty False),
+                { depM =
+                    void
+                      ( do
+                          sp <- addTextToStore n c HS.empty False
+                          liftIO (putStrLn ("instantiate: Adding file " ++ show sp))
+                          pure sp
+                      ),
                   drvDep = M.empty,
                   srcDep = S.singleton p
                 }
