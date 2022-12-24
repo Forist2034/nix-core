@@ -1,8 +1,11 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+{-# OPTIONS_GHC -Wno-partial-fields #-}
 
 module HsNix.Derivation.Drv.Internal.Derivation
-  ( ToText (..),
+  ( StoreType (..),
+    BuildPath (..),
+    ToText (..),
     DrvHash,
     toDerivation,
   )
@@ -14,6 +17,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 import Data.Coerce
 import qualified Data.HashMap.Strict as HM
+import Data.HashSet (HashSet)
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NEL
 import qualified Data.Map as M
@@ -35,6 +39,22 @@ import Nix.Derivation
 import System.Nix.Hash
 import System.Nix.ReadonlyStore
 import System.Nix.StorePath
+
+data StoreType
+  = StoreDrv
+      { storeName :: Text,
+        storeDrv :: Derivation StorePath Text,
+        storeDrvText :: Text,
+        storeRef :: HashSet StorePath
+      }
+  | StoreText Text Text
+  deriving (Show)
+
+data BuildPath = BuildPath
+  { buildPath :: StorePath,
+    buildType :: StoreType
+  }
+  deriving (Show)
 
 class ToText a where
   toText :: a -> Text
