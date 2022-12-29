@@ -11,7 +11,6 @@ import Data.ByteString.Lazy
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Map as M
 import Data.Semigroup
-import Data.Text (Text)
 import qualified Data.Text.Encoding as TE
 import HsNix.Builtin.AddFile
 import System.Nix.ReadonlyStore
@@ -76,10 +75,10 @@ buildNar dt =
             t
         ]
 
-makeNarPath :: FilePath -> Text -> DirTree -> StorePath
+makeNarPath :: FilePath -> StorePathName -> DirTree -> StorePath
 makeNarPath s n d =
   makeFixedOutputPath
     s
     True
     (H.hashWith H.SHA256 (LBS.toStrict (buildNar d)))
-    (StorePathName n)
+    n

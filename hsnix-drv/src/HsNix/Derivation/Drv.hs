@@ -39,6 +39,12 @@ import System.Nix.StorePath
 nixStore :: FilePath
 nixStore = "/nix/store"
 
+mkStorePathName :: Text -> StorePathName
+mkStorePathName v =
+  case makeStorePathName v of
+    Left e -> error ("Invalid store path name " ++ show v ++ ": " ++ e)
+    Right n -> n
+
 data BuildDrv = DB
   { dbPath :: BuildPath,
     dbDep :: S.Set BuildDrv
@@ -148,25 +154,21 @@ instance ND.MonadDeriv DirectDrv where
   derivation (DI w) =
     let (d, deps) = runDepVert w
         (drv, out) = toDerivation d (drvDep deps) (srcDep deps)
-        spName = ND.drvName d <> ".drv"
+        spName = mkStorePathName (ND.drvName d <> ".drv")
         drvText = (LT.toStrict . LTB.toLazyText . DrvBuild.buildDerivation) drv
         ref = HS.fromList (S.toList (srcDep deps) ++ M.keys (drvDep deps))
         drvPath =
-          computeStorePathForText
-            nixStore
-            (StorePathName spName)
-            (TE.encodeUtf8 drvText)
-            ref
+          computeStorePathForText nixStore spName (TE.encodeUtf8 drvText) ref
      in D
           { dDrv =
               DB
                 { dbPath =
                     BuildPath
                       { buildPath = drvPath,
+                        buildName = spName,
                         buildType =
                           StoreDrv
-                            { storeName = spName,
-                              storeDrv = drv,
+                            { storeDrv = drv,
                               storeDrvText = drvText,
                               storeRef = ref
                             }
@@ -208,10 +210,11 @@ instance BuiltinFetchUrl DirectDrv where
 
 instance BuiltinAddText DirectDrv where
   addTextFile n c =
-    let p =
+    let pn = mkStorePathName n
+        p =
           computeStorePathForText
             nixStore
-            (StorePathName n)
+            pn
             (TE.encodeUtf8 c)
             HS.empty
      in DI
@@ -223,7 +226,8 @@ instance BuiltinAddText DirectDrv where
                         { dbPath =
                             BuildPath
                               { buildPath = p,
-                                buildType = StoreText n c
+                                buildName = pn,
+                                buildType = StoreText c
                               },
                           dbDep = S.empty
                         },
@@ -235,7 +239,8 @@ instance BuiltinAddText DirectDrv where
 
 instance BuiltinAddDir DirectDrv where
   addDirectory n d =
-    let p = makeNarPath nixStore n d
+    let pn = mkStorePathName n
+        p = makeNarPath nixStore pn d
      in DI
           ( addEdge
               Deps
@@ -245,7 +250,8 @@ instance BuiltinAddDir DirectDrv where
                         { dbPath =
                             BuildPath
                               { buildPath = p,
-                                buildType = StoreDir n d
+                                buildName = pn,
+                                buildType = StoreDir d
                               },
                           dbDep = S.empty
                         },

@@ -21,22 +21,22 @@ runInst :: Bool -> BuildResult DirectDrv -> IO (Either String FilePath)
 runInst verbose (BResult r) =
   runStore
     ( traverse_
-        ( \BuildPath {buildPath = p, buildType = t} ->
+        ( \BuildPath {buildPath = p, buildName = n@(StorePathName nt), buildType = t} ->
             case t of
-              StoreDrv {storeName = n, storeDrvText = txt, storeRef = ref} -> do
+              StoreDrv {storeDrvText = txt, storeRef = ref} -> do
                 when verbose $
                   liftIO (putStrLn ("instantiate: add derivation " ++ show p))
-                addTextToStore n txt ref False
-              StoreText n c -> do
+                addTextToStore nt txt ref False
+              StoreText c -> do
                 when verbose $
                   liftIO (putStrLn ("instantiate: add text file " ++ show p))
-                addTextToStore n c HS.empty False
-              StoreDir n d -> do
+                addTextToStore nt c HS.empty False
+              StoreDir d -> do
                 when verbose $ do
                   liftIO (putStrLn ("instantiate: add directory " ++ show p))
                 dir <- liftIO $ mkdtemp "/tmp/source"
-                liftIO (writeDirTree dir n d)
-                addToStore @SHA256 (StorePathName n) dir True (const True) False
+                liftIO (writeDirTree dir nt d)
+                addToStore @SHA256 n dir True (const True) False
                   <* liftIO (removeDirectoryRecursive dir)
         )
         r

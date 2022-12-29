@@ -43,20 +43,32 @@ import System.Nix.StorePath
 
 data StoreType
   = StoreDrv
-      { storeName :: Text,
-        storeDrv :: Derivation StorePath Text,
+      { storeDrv :: Derivation StorePath Text,
         storeDrvText :: Text,
         storeRef :: HashSet StorePath
       }
-  | StoreText Text Text
-  | StoreDir Text DirTree
+  | StoreText Text
+  | StoreDir DirTree
   deriving (Show, Eq, Ord)
 
 data BuildPath = BuildPath
   { buildPath :: StorePath,
+    buildName :: StorePathName,
     buildType :: StoreType
   }
-  deriving (Show, Eq, Ord)
+  deriving (Eq, Ord)
+
+instance Show BuildPath where
+  show bp =
+    concat
+      [ "BuildPath{buildPath=",
+        show (buildPath bp),
+        ",buildName=",
+        show (unStorePathName (buildName bp)),
+        ",buildType=",
+        show (buildType bp),
+        "}"
+      ]
 
 class ToText a where
   toText :: a -> Text
