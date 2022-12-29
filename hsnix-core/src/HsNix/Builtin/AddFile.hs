@@ -3,8 +3,6 @@ module HsNix.Builtin.AddFile
     addTextFileStr,
     BuiltinAddBinary (..),
     addBinFileStr,
-    BuiltinAddDrvStr (..),
-    addDStrStr,
   )
 where
 
@@ -23,9 +21,3 @@ class (MonadDeriv m) => BuiltinAddBinary m where
 
 addBinFileStr :: BuiltinAddBinary m => Text -> ByteString -> m (DrvStr m)
 addBinFileStr n b = toDrvStr <$> addBinaryFile n b
-
-class (BuiltinAddText m) => BuiltinAddDrvStr m where
-  addDrvStr :: Text -> DrvStr m -> m (StorePath m)
-
-addDStrStr :: BuiltinAddDrvStr m => Text -> DrvStr m -> m (DrvStr m)
-addDStrStr n c = toDrvStr <$> addDrvStr n c

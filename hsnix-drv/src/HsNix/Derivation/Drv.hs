@@ -226,6 +226,3 @@ instance BuiltinAddText DirectDrv where
                 }
               >> pure (SP p)
           )
-
-instance BuiltinAddDrvStr DirectDrv where
-  addDrvStr n (DS t) = addTextFile n t
