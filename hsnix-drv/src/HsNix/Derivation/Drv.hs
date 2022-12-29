@@ -173,9 +173,9 @@ instance ND.MonadDeriv DirectDrv where
                       },
                   dbDep = buildDrv deps
                 },
-            dDefOut = case ND.drvOutputs d of
-              ND.RegularOutput os -> NEL.head os
-              ND.FixedOutput _ -> "out",
+            dDefOut = case ND.drvType d of
+              ND.InputAddressed os -> NEL.head os
+              ND.FixedOutput _ _ -> "out",
             dOut = out
           }
   build D {dDrv = d} = BResult (fmap dbPath (topoSortDep (addVertex d)))
@@ -192,11 +192,13 @@ instance BuiltinFetchUrl DirectDrv where
                     ("urls", ND.toDrvStr (url fa))
                   ],
                 ND.drvPreferLocalBuild = True,
-                ND.drvOutputs = ND.FixedOutput (outputHash fa),
-                ND.drvHashMode =
-                  if isExecutable fa || unpack fa
-                    then HashRecursive
-                    else HashFlat
+                ND.drvType =
+                  ND.FixedOutput
+                    ( if isExecutable fa || unpack fa
+                        then HashRecursive
+                        else HashFlat
+                    )
+                    (outputHash fa)
               }
           )
       )

@@ -220,18 +220,18 @@ buildDrvArg d =
             [ "passAsFile" $= mkList (mkStr . fst <$> drvPassAsFile d)
               | not (null (drvPassAsFile d))
             ],
-            [ case drvOutputs d of
-                RegularOutput os -> "outputs" $= mkList (NEL.toList (fmap mkStr os))
-                FixedOutput h -> "outputHash" $= mkStr (T.pack (show h))
-            ],
-            [ "outputHashMode"
-                $= mkStr
-                  ( case drvHashMode d of
-                      HashFlat -> "flat"
-                      HashRecursive -> "recursive"
-                  ),
-              "outputHashAlgo" $= mkStr (hashAlgoName (Proxy :: Proxy a))
-            ],
+            case drvType d of
+              InputAddressed os -> ["outputs" $= mkList (NEL.toList (fmap mkStr os))]
+              FixedOutput m h ->
+                [ "outputHash" $= mkStr (T.pack (show h)),
+                  "outputHashMode"
+                    $= mkStr
+                      ( case m of
+                          HashFlat -> "flat"
+                          HashRecursive -> "recursive"
+                      ),
+                  "outputHashAlgo" $= mkStr (hashAlgoName (Proxy :: Proxy a))
+                ],
             depField "allowedReferences" (drvAllowedReferences d),
             depField "allowedRequisites" (drvAllowedRequisites d),
             depField "disallowedReferences" (drvDisallowedReferences d),
@@ -388,9 +388,9 @@ instance MonadDeriv NixDrv where
      in DrvHs
           ( HsDrv
               { drvInfo = buildDrvArg drv,
-                drvOutputName = case drvOutputs drv of
-                  RegularOutput os -> Just os
-                  FixedOutput _ -> Nothing,
+                drvOutputName = case drvType drv of
+                  InputAddressed os -> Just os
+                  FixedOutput _ _ -> Nothing,
                 drvId = mkId (drvName drv) drv,
                 drvDepends = dep
               }
@@ -490,8 +490,10 @@ instance BuiltinFetchUrl NixDrv where
                 ("urls", toDrvStr (url fa))
               ],
             drvPreferLocalBuild = True,
-            drvOutputs = FixedOutput (outputHash fa),
-            drvHashMode = if isExecutable fa || unpack fa then HashRecursive else HashFlat
+            drvType =
+              FixedOutput
+                (if isExecutable fa || unpack fa then HashRecursive else HashFlat)
+                (outputHash fa)
           }
     where
       fromBool v = if v then "1" else ""

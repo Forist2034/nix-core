@@ -93,15 +93,15 @@ toEnv da =
           [ ("passAsFile", listToStr (fmap fst (ND.drvPassAsFile da)))
             | not (null (ND.drvPassAsFile da))
           ],
-          case ND.drvOutputs da of
-            ND.RegularOutput os ->
+          case ND.drvType da of
+            ND.InputAddressed os ->
               ("outputs", listToStr (NEL.toList os))
                 : fmap (,T.empty) (NEL.toList os)
-            ND.FixedOutput h ->
+            ND.FixedOutput m h ->
               [ ("outputs", "out"),
                 ("outputHashAlgo", hashAlgoName (Proxy :: Proxy a)),
                 ( "outputHashMode",
-                  case ND.drvHashMode da of
+                  case m of
                     HashFlat -> "flat"
                     HashRecursive -> "recursive"
                 ),
@@ -141,7 +141,7 @@ toDerivation ::
   M.Map StorePath (M.Map Text DrvHash) ->
   S.Set StorePath ->
   (Derivation StorePath Text, HM.HashMap Text (StorePath, DrvHash))
-toDerivation da@ND.DerivationArg {ND.drvOutputs = ND.RegularOutput os} inDrv inSrc =
+toDerivation da@ND.DerivationArg {ND.drvType = ND.InputAddressed os} inDrv inSrc =
   let outPath =
         let maskedHash = hashDrv' maskedDrv
          in HM.fromList
@@ -210,16 +210,16 @@ toDerivation da@ND.DerivationArg {ND.drvOutputs = ND.RegularOutput os} inDrv inS
           args = toArgs da,
           env = preEnv
         }
-toDerivation da@ND.DerivationArg {ND.drvOutputs = ND.FixedOutput (Hash h)} inDrv inSrc =
+toDerivation da@ND.DerivationArg {ND.drvType = ND.FixedOutput mode (Hash h)} inDrv inSrc =
   let hashAlg =
         let algName = hashAlgoName (Proxy :: Proxy a)
-         in case ND.drvHashMode da of
+         in case mode of
               HashFlat -> algName
               HashRecursive -> "r:" <> algName
       storePath =
         makeFixedOutputPath
           "/nix/store"
-          ( case ND.drvHashMode da of
+          ( case mode of
               HashFlat -> False
               HashRecursive -> True
           )

@@ -1,7 +1,8 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE ExplicitForAll #-}
 
 module HsNix.Internal.Derivation
-  ( DerivOutput (..),
+  ( DerivType (..),
     DerivationArg (..),
     defaultDrvArg,
   )
@@ -14,12 +15,12 @@ import GHC.Generics (Generic)
 import HsNix.Hash
 import HsNix.System
 
-data DerivOutput a
-  = RegularOutput (NEL.NonEmpty Text)
-  | FixedOutput (Hash a)
+data DerivType a
+  = InputAddressed (NEL.NonEmpty Text)
+  | FixedOutput HashMode (Hash a)
   deriving (Show, Eq, Generic)
 
-instance Hashable (DerivOutput a)
+instance Hashable (DerivType a)
 
 data DerivationArg txt a = DerivationArg
   { drvName :: Text,
@@ -27,8 +28,7 @@ data DerivationArg txt a = DerivationArg
     drvSystem :: System,
     drvArgs :: [txt],
     drvEnv, drvPassAsFile :: [(Text, txt)],
-    drvOutputs :: DerivOutput a,
-    drvHashMode :: HashMode,
+    drvType :: DerivType a,
     drvAllowedReferences,
     drvAllowedRequisites,
     drvDisallowedReferences,
@@ -40,7 +40,7 @@ data DerivationArg txt a = DerivationArg
 
 instance (Hashable txt) => Hashable (DerivationArg txt a)
 
-defaultDrvArg :: Text -> txt -> System -> DerivationArg txt a
+defaultDrvArg :: forall a txt. Text -> txt -> System -> DerivationArg txt a
 defaultDrvArg n b s =
   DerivationArg
     { drvName = n,
@@ -49,8 +49,7 @@ defaultDrvArg n b s =
       drvArgs = [],
       drvEnv = [],
       drvPassAsFile = [],
-      drvOutputs = RegularOutput (NEL.singleton "out"),
-      drvHashMode = HashRecursive,
+      drvType = InputAddressed (NEL.singleton "out"),
       drvAllowedReferences = Nothing,
       drvAllowedRequisites = Nothing,
       drvDisallowedReferences = Nothing,
