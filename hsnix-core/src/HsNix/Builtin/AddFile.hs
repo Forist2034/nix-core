@@ -10,6 +10,7 @@ module HsNix.Builtin.AddFile
     IsExecutable (..),
     DirTree (..),
     textFile,
+    mkDir,
     readDirTree,
     writeDirTree,
     BuiltinAddDir (..),
@@ -61,6 +62,12 @@ instance Hashable DirTree
 
 textFile :: IsExecutable -> Text -> DirTree
 textFile e v = Regular e (TE.encodeUtf8 v)
+
+mkDir :: [(Text, DirTree)] -> DirTree
+mkDir =
+  Dir
+    . M.fromListWithKey
+      (\k _ _ -> error ("duplicate dir entry " ++ T.unpack k))
 
 readDirTree :: FilePath -> IO DirTree
 readDirTree p =
