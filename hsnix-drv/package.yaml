@@ -5,6 +5,7 @@ license: MIT
 maintainer: dariankline@outlook.com
 
 ghc-options:
+  - -O2
   - -Wall
   - -Wcompat
   - -Widentities
