@@ -19,15 +19,15 @@ default-extensions:
   - OverloadedStrings
 
 dependencies:
-  - base >= 4.7 && < 5
-  - text >= 1.2 && < 2
-  - hashable >= 1.3 && < 2
-  - unordered-containers >= 0.2 && < 1
-  - hnix >= 0.16 && < 1
-  - prettyprinter >= 1.7 && < 2
-  - data-fix >= 0.3 && < 1
+  - base ^>= 4.15
+  - text ^>= 1.2
+  - hashable ^>= 1.3
+  - unordered-containers ^>= 0.2
+  - hnix ^>= 0.16
+  - prettyprinter ^>= 1.7
+  - data-fix ^>= 0.3
   - hsnix-core
-  - directory >= 1.3 && < 2
+  - directory ^>= 1.3
 
 library:
   source-dirs: src

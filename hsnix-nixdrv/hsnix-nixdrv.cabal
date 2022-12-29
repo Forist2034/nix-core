@@ -23,13 +23,13 @@ library
       OverloadedStrings
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
-      base >=4.7 && <5
-    , data-fix >=0.3 && <1
-    , directory >=1.3 && <2
-    , hashable >=1.3 && <2
-    , hnix >=0.16 && <1
+      base ==4.15.*
+    , data-fix ==0.3.*
+    , directory ==1.3.*
+    , hashable ==1.3.*
+    , hnix ==0.16.*
     , hsnix-core
-    , prettyprinter >=1.7 && <2
-    , text >=1.2 && <2
-    , unordered-containers >=0.2 && <1
+    , prettyprinter ==1.7.*
+    , text ==1.2.*
+    , unordered-containers ==0.2.*
   default-language: Haskell2010
