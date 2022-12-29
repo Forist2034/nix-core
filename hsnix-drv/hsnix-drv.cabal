@@ -33,7 +33,6 @@ library
     , hnix-store-core >=0.5 && <1
     , hnix-store-remote >=0.5 && <1
     , hsnix-core
-    , mtl >=2.2 && <3
     , nix-derivation >=1.1 && <2
     , text >=1.2 && <2
     , unordered-containers >=0.2 && <1

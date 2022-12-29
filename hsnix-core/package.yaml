@@ -21,6 +21,8 @@ default-extensions:
 dependencies:
   - base >= 4.7 && < 5
   - text >= 1.2 && < 2
+  - unordered-containers >= 0.2 && < 1
+  - mtl >= 2.2 && < 3
   - cryptonite >= 0.29 && < 1
   - memory >= 0.16 && < 1
   - bytestring >= 0.10 && < 1

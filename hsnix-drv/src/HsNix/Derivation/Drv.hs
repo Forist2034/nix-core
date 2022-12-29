@@ -10,8 +10,6 @@ module HsNix.Derivation.Drv
   )
 where
 
-import Control.Monad.State
-import Control.Monad.Writer
 import qualified Data.HashMap.Strict as HM
 import qualified Data.HashSet as HS
 import Data.Hashable
@@ -27,6 +25,8 @@ import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Builder as LTB
 import HsNix.Builtin.AddFile
 import HsNix.Builtin.FetchUrl
+import HsNix.Dependent.Topo
+import HsNix.Dependent.Vertex
 import qualified HsNix.Derivation as ND
 import HsNix.Derivation.Drv.Internal.Derivation
 import HsNix.Hash
@@ -35,18 +35,23 @@ import qualified System.Nix.Derivation as DrvBuild
 import System.Nix.ReadonlyStore
 import System.Nix.StorePath
 
-newtype BuildRes = BR {getBR :: [BuildPath] -> [BuildPath]}
+data BuildDrv = DB
+  { dbPath :: BuildPath,
+    dbDep :: S.Set BuildDrv
+  }
+  deriving (Show, Eq, Ord)
 
-instance Semigroup BuildRes where
-  BR l <> BR r = BR (l . r)
+instance Hashable BuildDrv where
+  hashWithSalt s = hashWithSalt s . buildPath . dbPath
 
-instance Monoid BuildRes where
-  mempty = BR id
-
-type ResultM = WriterT BuildRes (State (HS.HashSet StorePath))
+instance DepVertex BuildDrv where
+  type Id BuildDrv = StorePath
+  getId = buildPath . dbPath
+  type EdgeSet BuildDrv = S.Set
+  getDep = dbDep
 
 data Deps = Deps
-  { depM :: ResultM (),
+  { buildDrv :: S.Set BuildDrv,
     drvDep :: M.Map StorePath (M.Map Text DrvHash),
     srcDep :: S.Set StorePath
   }
@@ -54,15 +59,15 @@ data Deps = Deps
 instance Semigroup Deps where
   l <> r =
     Deps
-      { depM = depM l >> depM r,
+      { buildDrv = S.union (buildDrv l) (buildDrv r),
         drvDep = M.unionWith M.union (drvDep l) (drvDep r),
         srcDep = S.union (srcDep l) (srcDep r)
       }
 
 instance Monoid Deps where
-  mempty = Deps {depM = pure (), drvDep = M.empty, srcDep = S.empty}
+  mempty = Deps {buildDrv = S.empty, drvDep = M.empty, srcDep = S.empty}
 
-newtype DirectDrv a = DI (Writer Deps a)
+newtype DirectDrv a = DI (DepVert Deps a)
   deriving newtype (Functor, Applicative, Monad)
 
 instance ND.HasStrBuilder DirectDrv where
@@ -116,8 +121,7 @@ instance ND.MonadDeriv DirectDrv where
     deriving (Eq)
     deriving newtype (Show, Hashable)
   data Derivation DirectDrv = D
-    { dDrv :: StorePath,
-      dM :: ResultM (),
+    { dDrv :: BuildDrv,
       dDefOut :: Text,
       dOut :: HM.HashMap Text (StorePath, DrvHash)
     }
@@ -129,16 +133,16 @@ instance ND.MonadDeriv DirectDrv where
           Just v -> v
           Nothing -> error ("Derivation " ++ show d ++ "doesn't has output " ++ T.unpack out)
      in DI
-          ( tell
+          ( addEdge
               Deps
-                { depM = dM d,
-                  drvDep = M.singleton (dDrv d) (M.singleton out dh),
+                { buildDrv = S.singleton (dDrv d),
+                  drvDep = M.singleton (buildPath (dbPath (dDrv d))) (M.singleton out dh),
                   srcDep = S.empty
                 }
               >> pure (SP sp)
           )
   derivation (DI w) =
-    let (d, deps) = runWriter w
+    let (d, deps) = runDepVert w
         (drv, out) = toDerivation d (drvDep deps) (srcDep deps)
         spName = ND.drvName d <> ".drv"
         drvText = (LT.toStrict . LTB.toLazyText . DrvBuild.buildDerivation) drv
@@ -150,33 +154,27 @@ instance ND.MonadDeriv DirectDrv where
             (TE.encodeUtf8 drvText)
             ref
      in D
-          { dDrv = drvPath,
-            dM =
-              gets (HS.member drvPath) >>= \e ->
-                unless e $ do
-                  depM deps
-                  tell
-                    ( BR
-                        ( BuildPath
-                            { buildPath = drvPath,
-                              buildType =
-                                StoreDrv
-                                  { storeName = spName,
-                                    storeDrv = drv,
-                                    storeDrvText = drvText,
-                                    storeRef = ref
-                                  }
+          { dDrv =
+              DB
+                { dbPath =
+                    BuildPath
+                      { buildPath = drvPath,
+                        buildType =
+                          StoreDrv
+                            { storeName = spName,
+                              storeDrv = drv,
+                              storeDrvText = drvText,
+                              storeRef = ref
                             }
-                            :
-                        )
-                    )
-                  modify (HS.insert drvPath),
+                      },
+                  dbDep = buildDrv deps
+                },
             dDefOut = case ND.drvOutputs d of
               ND.RegularOutput os -> NEL.head os
               ND.FixedOutput _ -> "out",
             dOut = out
           }
-  build D {dM = m} = BResult (getBR (evalState (execWriterT m) HS.empty) [])
+  build D {dDrv = d} = BResult (fmap dbPath (topoSortDep (addVertex d)))
 
 instance BuiltinFetchUrl DirectDrv where
   fetchUrl fa =
@@ -211,21 +209,18 @@ instance BuiltinAddText DirectDrv where
             (TE.encodeUtf8 c)
             HS.empty
      in DI
-          ( tell
+          ( addEdge
               Deps
-                { depM =
-                    gets (HS.member p) >>= \e ->
-                      unless e $ do
-                        tell
-                          ( BR
-                              ( BuildPath
-                                  { buildPath = p,
-                                    buildType = StoreText n c
-                                  }
-                                  :
-                              )
-                          )
-                        modify (HS.insert p),
+                { buildDrv =
+                    S.singleton
+                      DB
+                        { dbPath =
+                            BuildPath
+                              { buildPath = p,
+                                buildType = StoreText n c
+                              },
+                          dbDep = S.empty
+                        },
                   drvDep = M.empty,
                   srcDep = S.singleton p
                 }

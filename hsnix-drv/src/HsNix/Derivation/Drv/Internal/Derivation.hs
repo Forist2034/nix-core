@@ -48,13 +48,13 @@ data StoreType
         storeRef :: HashSet StorePath
       }
   | StoreText Text Text
-  deriving (Show)
+  deriving (Show, Eq, Ord)
 
 data BuildPath = BuildPath
   { buildPath :: StorePath,
     buildType :: StoreType
   }
-  deriving (Show)
+  deriving (Show, Eq, Ord)
 
 class ToText a where
   toText :: a -> Text

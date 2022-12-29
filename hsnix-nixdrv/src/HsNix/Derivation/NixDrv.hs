@@ -25,8 +25,6 @@ module HsNix.Derivation.NixDrv
   )
 where
 
-import Control.Monad.State
-import Control.Monad.Writer
 import Data.Bifunctor
 import Data.Fix
 import Data.Foldable (traverse_)
@@ -44,6 +42,8 @@ import qualified Data.Text.Lazy.Builder as LTB
 import GHC.Generics (Generic)
 import HsNix.Builtin.AddFile
 import HsNix.Builtin.FetchUrl
+import HsNix.Dependent.Topo
+import HsNix.Dependent.Vertex
 import HsNix.Derivation
 import HsNix.Derivation as D hiding
   ( BuildResult,
@@ -330,23 +330,6 @@ buildFileDrv fs =
           (fmap (\f -> fileId f $= fileExpr f) fs)
     )
 
-type DepM = State (HashSet NixDeriv)
-
-runDepM :: DepM a -> [NixDeriv]
-runDepM mv = HS.toList (execState mv HS.empty)
-
-collectDepsL :: Foldable f => f (Derivation NixDrv) -> DepM ()
-collectDepsL = traverse_ collectDeps
-
-collectDeps :: Derivation NixDrv -> DepM ()
-collectDeps self@(DrvHs (HsDrv {drvDepends = dep})) =
-  gets (HS.member self) >>= \case
-    True -> return ()
-    False ->
-      modify (HS.insert self)
-        >> collectDepsL dep
-collectDeps v = modify (HS.insert v)
-
 groupDep :: [NixDeriv] -> ([HsDerivation], [ExternalDep], [FileDerivation])
 groupDep [] = ([], [], [])
 groupDep (dh : dt) =
@@ -358,14 +341,20 @@ groupDep (dh : dt) =
 
 buildDrvs :: [NixDeriv] -> (NExpr -> NExpr, NExpr)
 buildDrvs deps =
-  let (hs, ext, file) = groupDep (runDepM (collectDepsL deps))
+  let (hs, ext, file) = groupDep (topoSortDep (traverse_ addVertex deps))
       (f, extB) = buildExtDep ext
    in (f, mkRecSet (catMaybes [extB, buildFileDrv file, buildHsPkgs hs]))
 
 mkNixMod :: NExpr -> BuildResult NixDrv
 mkNixMod = NixMod . renderStrict . layoutPretty defaultLayoutOptions . prettyNix
 
-newtype NixDrv a = Dep {unDep :: Writer (HashSet (Derivation NixDrv)) a}
+instance DepVertex (Derivation NixDrv) where
+  type EdgeSet (Derivation NixDrv) = HS.HashSet
+  getDep (DrvHs h) = drvDepends h
+  getDep (DrvExt _) = HS.empty
+  getDep (DrvFile _) = HS.empty
+
+newtype NixDrv a = Dep {unDep :: DepVert (HashSet (Derivation NixDrv)) a}
   deriving newtype (Functor, Applicative, Monad)
 
 instance MonadDeriv NixDrv where
@@ -384,7 +373,7 @@ instance MonadDeriv NixDrv where
     deriving (Show)
 
   derivation v =
-    let (drv, dep) = runWriter (unDep v)
+    let (drv, dep) = runDepVert (unDep v)
      in DrvHs
           ( HsDrv
               { drvInfo = buildDrvArg drv,
@@ -397,9 +386,8 @@ instance MonadDeriv NixDrv where
           )
   storePathOf d mo =
     Dep
-      ( tell (HS.singleton d)
-          >> return
-            (SP (expr d))
+      ( addEdge (HS.singleton d)
+          >> pure (SP (expr d))
       )
     where
       selectOut p =
@@ -434,7 +422,7 @@ data PkgTree
 buildPkgTree :: [PkgTree] -> BuildResult NixDrv
 buildPkgTree pt =
   mkNixMod
-    ( let (f, b) = buildDrvs (runDepM (collectDepsTL pt))
+    ( let (f, b) = buildDrvs (topoSortDep (collectDepsTL pt))
        in f
             ( letE
                 pkgsVar
@@ -447,7 +435,7 @@ buildPkgTree pt =
     )
   where
     collectDepsTL = traverse_ collectDepsT
-    collectDepsT (PkgLeaf _ d) = collectDeps d
+    collectDepsT (PkgLeaf _ d) = addVertex d
     collectDepsT (PkgBranch _ ds) = collectDepsTL ds
 
     pkgsVar = "pkgs"
