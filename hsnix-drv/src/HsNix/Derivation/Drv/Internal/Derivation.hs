@@ -31,6 +31,7 @@ import qualified Data.Text.Lazy.Builder as LTB
 import qualified Data.Text.Lazy.Encoding as LTE
 import Data.Tuple (swap)
 import qualified Data.Vector as V
+import HsNix.Builtin.AddFile (DirTree)
 import HsNix.Derivation.Drv.Internal.Hash
 import HsNix.Hash
 import qualified HsNix.Internal.Derivation as ND
@@ -48,6 +49,7 @@ data StoreType
         storeRef :: HashSet StorePath
       }
   | StoreText Text Text
+  | StoreDir Text DirTree
   deriving (Show, Eq, Ord)
 
 data BuildPath = BuildPath

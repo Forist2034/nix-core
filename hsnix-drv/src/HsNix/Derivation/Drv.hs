@@ -29,11 +29,15 @@ import HsNix.Dependent.Topo
 import HsNix.Dependent.Vertex
 import qualified HsNix.Derivation as ND
 import HsNix.Derivation.Drv.Internal.Derivation
+import HsNix.Derivation.Drv.Internal.Nar
 import HsNix.Hash
 import HsNix.Internal.System
 import qualified System.Nix.Derivation as DrvBuild
 import System.Nix.ReadonlyStore
 import System.Nix.StorePath
+
+nixStore :: FilePath
+nixStore = "/nix/store"
 
 data BuildDrv = DB
   { dbPath :: BuildPath,
@@ -149,7 +153,7 @@ instance ND.MonadDeriv DirectDrv where
         ref = HS.fromList (S.toList (srcDep deps) ++ M.keys (drvDep deps))
         drvPath =
           computeStorePathForText
-            "/nix/store"
+            nixStore
             (StorePathName spName)
             (TE.encodeUtf8 drvText)
             ref
@@ -204,7 +208,7 @@ instance BuiltinAddText DirectDrv where
   addTextFile n c =
     let p =
           computeStorePathForText
-            "/nix/store"
+            nixStore
             (StorePathName n)
             (TE.encodeUtf8 c)
             HS.empty
@@ -218,6 +222,28 @@ instance BuiltinAddText DirectDrv where
                             BuildPath
                               { buildPath = p,
                                 buildType = StoreText n c
+                              },
+                          dbDep = S.empty
+                        },
+                  drvDep = M.empty,
+                  srcDep = S.singleton p
+                }
+              >> pure (SP p)
+          )
+
+instance BuiltinAddDir DirectDrv where
+  addDirectory n d =
+    let p = makeNarPath nixStore n d
+     in DI
+          ( addEdge
+              Deps
+                { buildDrv =
+                    S.singleton
+                      DB
+                        { dbPath =
+                            BuildPath
+                              { buildPath = p,
+                                buildType = StoreDir n d
                               },
                           dbDep = S.empty
                         },

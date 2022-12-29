@@ -30,6 +30,8 @@ dependencies:
   - nix-derivation >= 1.1 && < 2
   - hnix-store-core >= 0.5 && < 1
   - hnix-store-remote >= 0.5 && < 1
+  - directory >= 1.3 && < 2
+  - unix >= 2.7 && < 3
   - hsnix-core
 
 library:
@@ -37,3 +39,4 @@ library:
   other-modules:
     - HsNix.Derivation.Drv.Internal.Derivation
     - HsNix.Derivation.Drv.Internal.Hash
+    - HsNix.Derivation.Drv.Internal.Nar
