@@ -6,6 +6,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module HsNix.Derivation.NixDrv
@@ -19,6 +20,7 @@ module HsNix.Derivation.NixDrv
     StorePath,
     Derivation,
     BuildResult (..),
+    writeBuildResult,
     PkgTree (..),
     buildPkgTree,
     buildPkgSet,
@@ -32,11 +34,12 @@ import Data.HashSet (HashSet)
 import qualified Data.HashSet as HS
 import Data.Hashable
 import qualified Data.List.NonEmpty as NEL
-import Data.Maybe (catMaybes)
+import Data.Maybe
 import Data.Proxy
 import Data.String
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Builder as LTB
 import GHC.Generics (Generic)
@@ -58,9 +61,11 @@ import Nix.Expr.Shorthands
 import Nix.Expr.Types
 import Nix.Expr.Types.Annotated
 import Nix.Pretty
+import Nix.Utils
 import Numeric (showHex)
 import Prettyprinter
 import Prettyprinter.Render.Text
+import System.Directory
 
 mkSelect :: NExpr -> [Text] -> NExpr
 mkSelect f t =
@@ -300,59 +305,62 @@ buildExtDep e =
 
     extDepAbsSym = mkSym extDepAbs
 
-data FileDerivation = FileDrv
-  { fileName :: Text,
-    fileContent :: Text,
-    fileId :: Text
+data DirDerivation = DirDrv
+  { dirName :: Text,
+    dirContent :: DirTree,
+    dirId :: Text
   }
   deriving (Show, Eq, Generic)
 
-instance Hashable FileDerivation
+instance Hashable DirDerivation
 
-fileVar :: Text
-fileVar = "file"
+fileDir :: Path
+fileDir = Path "files"
 
-filesSym :: NExpr
-filesSym = mkSym fileVar
+fileDirName :: Text
+fileDirName = "files"
 
-fileDrvExpr :: FileDerivation -> NExpr
-fileDrvExpr f = filesSym @. fileId f
+dirDrvExpr :: DirDerivation -> NExpr
+dirDrvExpr f =
+  Fix $
+    NLiteralPath
+      ( joinPath
+          [ Path ".",
+            fileDir,
+            Path (T.unpack (dirId f)),
+            Path (T.unpack (dirName f))
+          ]
+      )
 
-fileExpr :: FileDerivation -> NExpr
-fileExpr f = mkBuiltin "toFile" @@ mkStr (fileName f) @@ mkStr (fileContent f)
-
-buildFileDrv :: [FileDerivation] -> Maybe (Binding NExpr)
-buildFileDrv [] = Nothing
-buildFileDrv fs =
+buildDir :: [DirDerivation] -> Maybe DirTree
+buildDir [] = Nothing
+buildDir fs =
   Just
-    ( fileVar
-        $= mkNonRecSet
-          (fmap (\f -> fileId f $= fileExpr f) fs)
-    )
+    (mkDir (fmap (\d -> (dirId d, mkDir [(dirName d, dirContent d)])) fs))
 
-groupDep :: [NixDeriv] -> ([HsDerivation], [ExternalDep], [FileDerivation])
+groupDep :: [NixDeriv] -> ([HsDerivation], [ExternalDep], [DirDerivation])
 groupDep [] = ([], [], [])
 groupDep (dh : dt) =
   let (h, e, f) = groupDep dt
    in case dh of
         DrvHs v -> (v : h, e, f)
         DrvExt v -> (h, v : e, f)
-        DrvFile v -> (h, e, v : f)
+        DrvDir v -> (h, e, v : f)
 
-buildDrvs :: [NixDeriv] -> (NExpr -> NExpr, NExpr)
+buildDrvs :: [NixDeriv] -> (NExpr -> NExpr, NExpr, Maybe DirTree)
 buildDrvs deps =
-  let (hs, ext, file) = groupDep (topoSortDep (traverse_ addVertex deps))
+  let (hs, ext, dir) = groupDep (topoSortDep (traverse_ addVertex deps))
       (f, extB) = buildExtDep ext
-   in (f, mkRecSet (catMaybes [extB, buildFileDrv file, buildHsPkgs hs]))
+   in (f, mkRecSet (catMaybes [extB, buildHsPkgs hs]), buildDir dir)
 
-mkNixMod :: NExpr -> BuildResult NixDrv
-mkNixMod = NixMod . renderStrict . layoutPretty defaultLayoutOptions . prettyNix
+mkNixMod :: NExpr -> Text
+mkNixMod = renderStrict . layoutPretty defaultLayoutOptions . prettyNix
 
 instance DepVertex (Derivation NixDrv) where
   type EdgeSet (Derivation NixDrv) = HS.HashSet
   getDep (DrvHs h) = drvDepends h
   getDep (DrvExt _) = HS.empty
-  getDep (DrvFile _) = HS.empty
+  getDep (DrvDir _) = HS.empty
 
 newtype NixDrv a = Dep {unDep :: DepVert (HashSet (Derivation NixDrv)) a}
   deriving newtype (Functor, Applicative, Monad)
@@ -367,9 +375,12 @@ instance MonadDeriv NixDrv where
   data Derivation NixDrv
     = DrvHs HsDerivation
     | DrvExt ExternalDep
-    | DrvFile FileDerivation
+    | DrvDir DirDerivation
     deriving (Show, Eq, Generic, Hashable)
-  newtype BuildResult NixDrv = NixMod {modText :: Text}
+  data BuildResult NixDrv = NixMod
+    { modText :: Text,
+      modFiles :: Maybe (Text, DirTree)
+    }
     deriving (Show)
 
   derivation v =
@@ -405,15 +416,20 @@ instance MonadDeriv NixDrv where
               Nothing -> mkSym i
           )
       expr (DrvExt e) = selectOut (extDepExpr e)
-      expr (DrvFile f) = fileDrvExpr f
+      expr (DrvDir f) = dirDrvExpr f
 
   build self@(DrvHs drv) =
-    let (f, bs) = buildDrvs [self]
-     in mkNixMod (f (mkSelect bs [hsPkgsVar, drvId drv]))
+    let (f, bs, d) = buildDrvs [self]
+     in NixMod (mkNixMod (f (mkSelect bs [hsPkgsVar, drvId drv]))) (fmap (fileDirName,) d)
   build (DrvExt (ExtDep {extFrom = f, extPath = p})) =
-    mkNixMod (mkParamSet [(f, Nothing)] ==> mkSelect (mkSym f) p)
-  build (DrvFile f) =
-    mkNixMod (fileExpr f)
+    NixMod (mkNixMod (mkParamSet [(f, Nothing)] ==> mkSelect (mkSym f) p)) Nothing
+  build (DrvDir _) = error "build a file store path"
+
+writeBuildResult :: FilePath -> Text -> BuildResult NixDrv -> IO ()
+writeBuildResult root n br =
+  withCurrentDirectory root $ do
+    TIO.writeFile (T.unpack n <> ".nix") (modText br)
+    maybe (pure ()) (uncurry (writeDirTree ".")) (modFiles br)
 
 data PkgTree
   = PkgLeaf (NEL.NonEmpty Text) (Derivation NixDrv)
@@ -421,18 +437,21 @@ data PkgTree
 
 buildPkgTree :: [PkgTree] -> BuildResult NixDrv
 buildPkgTree pt =
-  mkNixMod
-    ( let (f, b) = buildDrvs (topoSortDep (collectDepsTL pt))
-       in f
-            ( letE
-                pkgsVar
-                b
-                ( mkWith
-                    (mkSym pkgsVar)
-                    (mkNonRecSet (fmap buildTree pt))
+  let (f, b, d) = buildDrvs (topoSortDep (collectDepsTL pt))
+   in NixMod
+        ( mkNixMod
+            ( f
+                ( letE
+                    pkgsVar
+                    b
+                    ( mkWith
+                        (mkSym pkgsVar)
+                        (mkNonRecSet (mapMaybe buildTree pt))
+                    )
                 )
             )
-    )
+        )
+        (fmap (fileDirName,) d)
   where
     collectDepsTL = traverse_ collectDepsT
     collectDepsT (PkgLeaf _ d) = addVertex d
@@ -446,15 +465,15 @@ buildPkgTree pt =
         v
         (SourcePos "<generated>" (mkPos 1) (mkPos 1))
     buildTree (PkgLeaf p d) =
-      mkBinding
-        p
+      fmap
+        (mkBinding p)
         ( case d of
-            DrvHs dh -> mkSelect hsPkgsSym [drvId dh]
-            DrvExt e -> extDepExpr e
-            DrvFile f -> fileDrvExpr f
+            DrvHs dh -> Just $ mkSelect hsPkgsSym [drvId dh]
+            DrvExt e -> Just $ extDepExpr e
+            DrvDir _ -> Nothing
         )
     buildTree (PkgBranch p ts) =
-      mkBinding p (mkNonRecSet (buildTree <$> ts))
+      Just $ mkBinding p (mkNonRecSet (mapMaybe buildTree ts))
 
 buildPkgSet :: [(Text, Derivation NixDrv)] -> BuildResult NixDrv
 buildPkgSet = buildPkgTree . fmap (\(i, d) -> PkgLeaf (NEL.singleton i) d)
@@ -479,12 +498,25 @@ instance BuiltinFetchUrl NixDrv where
 
 instance BuiltinAddText NixDrv where
   addTextFile n c =
+    let d = textFile NonExecutable c
+     in storePath
+          ( DrvDir
+              ( DirDrv
+                  { dirName = n,
+                    dirContent = d,
+                    dirId = mkId n (n, d)
+                  }
+              )
+          )
+
+instance BuiltinAddDir NixDrv where
+  addDirectory n d =
     storePath
-      ( DrvFile
-          ( FileDrv
-              { fileName = n,
-                fileContent = c,
-                fileId = mkId n (n, c)
+      ( DrvDir
+          ( DirDrv
+              { dirName = n,
+                dirContent = d,
+                dirId = mkId n (n, d)
               }
           )
       )
