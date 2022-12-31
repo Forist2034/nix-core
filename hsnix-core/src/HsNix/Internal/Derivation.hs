@@ -18,6 +18,7 @@ import HsNix.System
 data DerivType a
   = InputAddressed (NEL.NonEmpty Text)
   | FixedOutput HashMode (Hash a)
+  | ContentAddressed HashMode (NEL.NonEmpty Text)
   deriving (Show, Eq, Generic)
 
 instance Hashable (DerivType a)

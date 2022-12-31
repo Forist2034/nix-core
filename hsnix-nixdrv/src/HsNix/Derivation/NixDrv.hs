@@ -221,16 +221,17 @@ buildDrvArg d =
               | not (null (drvPassAsFile d))
             ],
             case drvType d of
-              InputAddressed os -> ["outputs" $= mkList (NEL.toList (fmap mkStr os))]
+              InputAddressed os -> [mkOutputs os]
               FixedOutput m h ->
                 [ "outputHash" $= mkStr (T.pack (show h)),
-                  "outputHashMode"
-                    $= mkStr
-                      ( case m of
-                          HashFlat -> "flat"
-                          HashRecursive -> "recursive"
-                      ),
-                  "outputHashAlgo" $= mkStr (hashAlgoName (Proxy :: Proxy a))
+                  mkHashMode m,
+                  mkHashAlgo (Proxy :: Proxy a)
+                ]
+              ContentAddressed m os ->
+                [ mkOutputs os,
+                  mkHashMode m,
+                  mkHashAlgo (Proxy :: Proxy a),
+                  "__contentAddressed" $= mkBool True
                 ],
             depField "allowedReferences" (drvAllowedReferences d),
             depField "allowedRequisites" (drvAllowedRequisites d),
@@ -242,6 +243,15 @@ buildDrvArg d =
           ]
       )
   where
+    mkOutputs os = "outputs" $= mkList (NEL.toList (fmap mkStr os))
+    mkHashMode m =
+      "outputHashMode"
+        $= mkStr
+          ( case m of
+              HashFlat -> "flat"
+              HashRecursive -> "recursive"
+          )
+    mkHashAlgo p = "outputHashAlgo" $= mkStr (hashAlgoName p)
     maybeField = maybe []
     depField n = maybeField (\f -> [n $= mkList (fmap strToExpr f)])
 
@@ -390,7 +400,8 @@ instance MonadDeriv NixDrv where
               { drvInfo = buildDrvArg drv,
                 drvOutputName = case drvType drv of
                   InputAddressed os -> Just os
-                  FixedOutput _ _ -> Nothing,
+                  FixedOutput _ _ -> Nothing
+                  ContentAddressed _ os -> Just os,
                 drvId = mkId (drvName drv) drv,
                 drvDepends = dep
               }
