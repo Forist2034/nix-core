@@ -373,9 +373,9 @@ instance DepVertex (Derivation NixDrv) where
   getDep (DrvDir _) = HS.empty
 
 newtype NixDrv a = Dep {unDep :: DepVert (HashSet (Derivation NixDrv)) a}
-  deriving newtype (Functor, Applicative, Monad)
+  deriving newtype (Functor, Applicative)
 
-instance MonadDeriv NixDrv where
+instance ApplicativeDeriv NixDrv where
   newtype DrvStr NixDrv = DStr [DrvStrSpan]
     deriving (Eq, Show)
     deriving newtype (Hashable)
@@ -492,7 +492,7 @@ buildPkgSet = buildPkgTree . fmap (\(i, d) -> PkgLeaf (NEL.singleton i) d)
 instance BuiltinFetchUrl NixDrv where
   fetchUrl fa =
     derivation $
-      return
+      pure
         (defaultDrvArg (name fa) "builtin:fetchurl" (System "builtin"))
           { drvEnv =
               [ ("url", toDrvStr (url fa)),

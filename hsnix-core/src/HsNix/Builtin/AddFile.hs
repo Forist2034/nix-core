@@ -33,13 +33,13 @@ import Instances.TH.Lift ()
 import Language.Haskell.TH.Syntax (Lift)
 import System.Directory
 
-class (MonadDeriv m) => BuiltinAddText m where
+class (ApplicativeDeriv m) => BuiltinAddText m where
   addTextFile :: Text -> Text -> m (StorePath m)
 
 addTextFileStr :: BuiltinAddText m => Text -> Text -> m (DrvStr m)
 addTextFileStr n c = toDrvStr <$> addTextFile n c
 
-class (MonadDeriv m) => BuiltinAddBinary m where
+class (ApplicativeDeriv m) => BuiltinAddBinary m where
   addBinaryFile :: Text -> ByteString -> m (StorePath m)
 
 addBinFileStr :: BuiltinAddBinary m => Text -> ByteString -> m (DrvStr m)
@@ -123,7 +123,7 @@ writeDirTree root name dt =
           fp
           (void (M.traverseWithKey (go . T.unpack) d))
 
-class (MonadDeriv m) => BuiltinAddDir m where
+class (ApplicativeDeriv m) => BuiltinAddDir m where
   addDirectory :: Text -> DirTree -> m (StorePath m)
 
 addDirStr :: BuiltinAddDir m => Text -> DirTree -> m (DrvStr m)

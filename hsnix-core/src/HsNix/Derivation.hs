@@ -9,7 +9,7 @@ module HsNix.Derivation
     AsDrvStr (..),
     Quoted (..),
     HasStrBuilder (..),
-    MonadDeriv (..),
+    ApplicativeDeriv (..),
     storePathStrOf,
     storePath,
     storePathStr,
@@ -46,8 +46,18 @@ class
   fromDrvStr :: DrvStr m -> DrvStrBuilder m
   quote :: (Char -> Bool) -> DrvStr m -> [Quoted (DrvStr m)]
 
+-- | Only use applicative not monad.
+--    Avoid missing dependencies like
+--    @
+--      derivation $ do
+--        x <- d1
+--        y <- storePathStr
+--          (derivation (pure (defaultDrvArg "foo" y "bar")))
+--        -- dependent x not recorded in y
+--        pure (defaultDrvArg "a" y "x")
+--    @
 class
-  ( Monad m,
+  ( Applicative m,
     DrvValue (DrvStr m),
     StrValue (DrvStr m),
     AsDrvStr Text (DrvStr m),
@@ -56,7 +66,7 @@ class
     AsDrvStr (StorePath m) (DrvStr m),
     DrvValue (Derivation m)
   ) =>
-  MonadDeriv m
+  ApplicativeDeriv m
   where
   data DrvStr m
   data StorePath m
@@ -66,11 +76,11 @@ class
   storePathOf :: Derivation m -> Maybe Text -> m (StorePath m)
   build :: Derivation m -> BuildResult m
 
-storePathStrOf :: MonadDeriv m => Derivation m -> Maybe Text -> m (DrvStr m)
+storePathStrOf :: ApplicativeDeriv m => Derivation m -> Maybe Text -> m (DrvStr m)
 storePathStrOf d o = toDrvStr <$> storePathOf d o
 
-storePath :: MonadDeriv m => Derivation m -> m (StorePath m)
+storePath :: ApplicativeDeriv m => Derivation m -> m (StorePath m)
 storePath d = storePathOf d Nothing
 
-storePathStr :: MonadDeriv m => Derivation m -> m (DrvStr m)
+storePathStr :: ApplicativeDeriv m => Derivation m -> m (DrvStr m)
 storePathStr d = toDrvStr <$> storePath d

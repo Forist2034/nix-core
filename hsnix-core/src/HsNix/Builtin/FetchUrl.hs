@@ -27,7 +27,7 @@ defFetchUrlArg n u h =
       unpack = False
     }
 
-class (MonadDeriv m) => BuiltinFetchUrl m where
+class (ApplicativeDeriv m) => BuiltinFetchUrl m where
   fetchUrl :: NamedHashAlgo a => FetchUrlArg a -> Derivation m
 
 fetchUrlStr :: (BuiltinFetchUrl m, NamedHashAlgo a) => FetchUrlArg a -> m (DrvStr m)
