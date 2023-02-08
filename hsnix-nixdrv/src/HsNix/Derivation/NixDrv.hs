@@ -33,6 +33,7 @@ import Data.Foldable (traverse_)
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as HS
 import Data.Hashable
+import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty as NEL
 import Data.Maybe
 import Data.Proxy
@@ -59,7 +60,6 @@ import HsNix.Hash
 import HsNix.Internal.System
 import Nix.Expr.Shorthands
 import Nix.Expr.Types
-import Nix.Expr.Types.Annotated
 import Nix.Pretty
 import Nix.Utils
 import Numeric (showHex)
@@ -78,11 +78,18 @@ mkSelect f t =
 mkBuiltin :: Text -> NExpr
 mkBuiltin v = mkSym "builtins" @. v
 
-mkId :: (Hashable a) => Text -> a -> Text
-mkId base v =
+mkIdStr :: Hashable a => Text -> a -> Text
+mkIdStr base v =
   base
     <> "_"
     <> T.pack (showHex (fromIntegral (hash v) :: Word) "")
+
+mkId :: (Hashable a) => Text -> a -> NKeyName NExpr
+mkId base v =
+  let ks = mkIdStr base v
+   in if '.' `T.elem` base
+        then DynamicKey (Plain (DoubleQuoted [Plain ks]))
+        else StaticKey (VarName ks)
 
 type NixDerivArg = DerivationArg NixDrv
 
@@ -199,7 +206,7 @@ type NixDeriv = Derivation NixDrv
 data HsDerivation = HsDrv
   { drvInfo :: NExpr,
     drvOutputName :: Maybe (NEL.NonEmpty Text),
-    drvId :: Text,
+    drvId :: NKeyName NExpr,
     drvDepends :: HashSet NixDeriv
   }
   deriving (Show, Eq, Generic)
@@ -261,15 +268,27 @@ hsPkgsVar = "hs-packages"
 hsPkgsSym :: NExpr
 hsPkgsSym = mkSym hsPkgsVar
 
+hsPkgsExpr :: HsDerivation -> [Text] -> NExpr
+hsPkgsExpr d o =
+  Fix (NSelect Nothing hsPkgsSym (drvId d :| fmap (StaticKey . VarName) o))
+
 buildHsPkgs :: [HsDerivation] -> Maybe (Binding NExpr)
 buildHsPkgs [] = Nothing
 buildHsPkgs ds =
   Just
     ( hsPkgsVar
-        $= mkRecSet (fmap (\d -> drvId d $= drvInfo d) ds)
+        $= mkRecSet
+          ( fmap
+              (\d -> NamedVar (NEL.singleton (drvId d)) (drvInfo d) nullPos)
+              ds
+          )
     )
 
-data ExternalDep = ExtDep {extFrom :: Text, extPath :: [Text], extId :: Text}
+data ExternalDep = ExtDep
+  { extFrom :: Text,
+    extPath :: [Text],
+    extId :: NKeyName NExpr
+  }
   deriving (Show, Eq, Generic)
 
 instance Hashable ExternalDep
@@ -291,8 +310,14 @@ extDepVar = "external"
 extDepSym :: NExpr
 extDepSym = mkSym extDepVar
 
-extDepExpr :: ExternalDep -> NExpr
-extDepExpr e = extDepSym @. extId e
+extDepExpr :: ExternalDep -> [Text] -> NExpr
+extDepExpr e o =
+  Fix
+    ( NSelect
+        Nothing
+        extDepSym
+        (extId e :| fmap (StaticKey . VarName) o)
+    )
 
 buildExtDep :: [ExternalDep] -> (NExpr -> NExpr, Maybe (Binding NExpr))
 buildExtDep [] = (id, Nothing)
@@ -303,7 +328,10 @@ buildExtDep e =
           $= mkNonRecSet
             ( fmap
                 ( \d ->
-                    extId d $= mkSelect extDepAbsSym (extFrom d : extPath d)
+                    NamedVar
+                      (NEL.singleton (extId d))
+                      (mkSelect extDepAbsSym (extFrom d : extPath d))
+                      nullPos
                 )
                 e
             )
@@ -412,26 +440,39 @@ instance ApplicativeDeriv NixDrv where
           >> pure (SP (expr d))
       )
     where
-      selectOut p =
-        mkSelect p (maybe ["outPath"] (: ["outPath"]) mo)
-      expr (DrvHs (HsDrv {drvId = i, drvOutputName = dOut})) =
-        selectOut
-          ( case mo of
-              Just o ->
-                case dOut of
-                  Just os ->
-                    if o `elem` os
-                      then mkSym i
-                      else error (concat ["Derivation ", T.unpack i, " doesn't has output ", T.unpack o])
-                  Nothing -> error "Not using default output name to get store path of fixed output"
-              Nothing -> mkSym i
-          )
-      expr (DrvExt e) = selectOut (extDepExpr e)
+      selectOut = maybe ["outPath"] (: ["outPath"]) mo
+      expr (DrvHs hsD@(HsDrv {drvId = i, drvOutputName = dOut})) =
+        case mo of
+          Just o ->
+            case dOut of
+              Just os ->
+                if o `elem` os
+                  then hsPkgsExpr hsD selectOut
+                  else error (concat ["Derivation ", show i, " doesn't has output ", T.unpack o])
+              Nothing -> error "Not using default output name to get store path of fixed output"
+          Nothing -> hsPkgsExpr hsD selectOut
+      expr (DrvExt e) = extDepExpr e selectOut
       expr (DrvDir f) = dirDrvExpr f
 
   build self@(DrvHs drv) =
     let (f, bs, d) = buildDrvs [self]
-     in NixMod (mkNixMod (f (mkSelect bs [hsPkgsVar, drvId drv]))) (fmap (fileDirName,) d)
+     in NixMod
+          ( mkNixMod
+              ( f
+                  ( Fix
+                      ( NSelect
+                          Nothing
+                          bs
+                          ( NEL.fromList
+                              [ StaticKey (VarName hsPkgsVar),
+                                drvId drv
+                              ]
+                          )
+                      )
+                  )
+              )
+          )
+          (fmap (fileDirName,) d)
   build (DrvExt (ExtDep {extFrom = f, extPath = p})) =
     NixMod (mkNixMod (mkParamSet [(f, Nothing)] ==> mkSelect (mkSym f) p)) Nothing
   build (DrvDir _) = error "build a file store path"
@@ -474,13 +515,13 @@ buildPkgTree pt =
       NamedVar
         (StaticKey . VarName <$> k)
         v
-        (SourcePos "<generated>" (mkPos 1) (mkPos 1))
+        nullPos
     buildTree (PkgLeaf p d) =
       fmap
         (mkBinding p)
         ( case d of
-            DrvHs dh -> Just $ mkSelect hsPkgsSym [drvId dh]
-            DrvExt e -> Just $ extDepExpr e
+            DrvHs dh -> Just (hsPkgsExpr dh [])
+            DrvExt e -> Just (extDepExpr e [])
             DrvDir _ -> Nothing
         )
     buildTree (PkgBranch p ts) =
@@ -517,7 +558,7 @@ instance BuiltinAddText NixDrv where
               ( DirDrv
                   { dirName = n,
                     dirContent = d,
-                    dirId = mkId n (n, d)
+                    dirId = mkIdStr n (n, d)
                   }
               )
           )
@@ -529,7 +570,7 @@ instance BuiltinAddDir NixDrv where
           ( DirDrv
               { dirName = n,
                 dirContent = d,
-                dirId = mkId n (n, d)
+                dirId = mkIdStr n (n, d)
               }
           )
       )
