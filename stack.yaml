@@ -3,7 +3,8 @@ resolver:
 
 packages:
   - ./hsnix-core
-  - ./hsnix-drv
+  # broken
+  #- ./hsnix-drv
   - ./hsnix-nixdrv
 
 extra-deps:
