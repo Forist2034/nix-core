@@ -2,6 +2,7 @@ resolver:
   url: https://github.com/commercialhaskell/stackage-snapshots/raw/master/lts/19/33.yaml
 
 packages:
+  - ./nix-archive
   - ./hsnix-core
   # broken
   #- ./hsnix-drv

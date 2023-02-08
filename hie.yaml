@@ -1,2 +1,12 @@
 cradle:
   stack:
+    - path: nix-archive/src
+      component: "nix-archive:lib"
+    - path: nix-archive/tests/spec
+      component: "nix-archive:test:spec"
+    - path: nix-archive/tests/quickcheck
+      component: "nix-archive:test:quickcheck"
+    - path: hsnix-core/src
+      component: "hsnix-core:lib"
+    - path: hsnix-nixdrv/src
+      component: "hsnix-nixdrv:lib"

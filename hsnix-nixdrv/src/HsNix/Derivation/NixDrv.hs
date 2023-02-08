@@ -40,6 +40,7 @@ import Data.Proxy
 import Data.String
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE
 import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Builder as LTB
@@ -60,6 +61,7 @@ import HsNix.Hash
 import HsNix.Internal.System
 import Nix.Expr.Shorthands
 import Nix.Expr.Types
+import Nix.Nar
 import Nix.Pretty
 import Nix.Utils
 import Numeric (showHex)
@@ -345,7 +347,7 @@ buildExtDep e =
 
 data DirDerivation = DirDrv
   { dirName :: Text,
-    dirContent :: DirTree,
+    dirContent :: Nar,
     dirId :: Text
   }
   deriving (Show, Eq, Generic)
@@ -370,12 +372,6 @@ dirDrvExpr f =
           ]
       )
 
-buildDir :: [DirDerivation] -> Maybe DirTree
-buildDir [] = Nothing
-buildDir fs =
-  Just
-    (mkDir (fmap (\d -> (dirId d, mkDir [(dirName d, dirContent d)])) fs))
-
 groupDep :: [NixDeriv] -> ([HsDerivation], [ExternalDep], [DirDerivation])
 groupDep [] = ([], [], [])
 groupDep (dh : dt) =
@@ -385,11 +381,11 @@ groupDep (dh : dt) =
         DrvExt v -> (h, v : e, f)
         DrvDir v -> (h, e, v : f)
 
-buildDrvs :: [NixDeriv] -> (NExpr -> NExpr, NExpr, Maybe DirTree)
+buildDrvs :: [NixDeriv] -> (NExpr -> NExpr, NExpr, [DirDerivation])
 buildDrvs deps =
   let (hs, ext, dir) = groupDep (topoSortDep (traverse_ addVertex deps))
       (f, extB) = buildExtDep ext
-   in (f, mkRecSet (catMaybes [extB, buildHsPkgs hs]), buildDir dir)
+   in (f, mkRecSet (catMaybes [extB, buildHsPkgs hs]), dir)
 
 mkNixMod :: NExpr -> Text
 mkNixMod = renderStrict . layoutPretty defaultLayoutOptions . prettyNix
@@ -417,7 +413,7 @@ instance ApplicativeDeriv NixDrv where
     deriving (Show, Eq, Generic, Hashable)
   data BuildResult NixDrv = NixMod
     { modText :: Text,
-      modFiles :: Maybe (Text, DirTree)
+      modFiles :: [DirDerivation]
     }
     deriving (Show)
 
@@ -472,16 +468,25 @@ instance ApplicativeDeriv NixDrv where
                   )
               )
           )
-          (fmap (fileDirName,) d)
+          d
   build (DrvExt (ExtDep {extFrom = f, extPath = p})) =
-    NixMod (mkNixMod (mkParamSet [(f, Nothing)] ==> mkSelect (mkSym f) p)) Nothing
+    NixMod (mkNixMod (mkParamSet [(f, Nothing)] ==> mkSelect (mkSym f) p)) []
   build (DrvDir _) = error "build a file store path"
 
 writeBuildResult :: FilePath -> Text -> BuildResult NixDrv -> IO ()
 writeBuildResult root n br =
   withCurrentDirectory root $ do
     TIO.writeFile (T.unpack n <> ".nix") (modText br)
-    maybe (pure ()) (uncurry (writeDirTree ".")) (modFiles br)
+    traverse_
+      ( \bd ->
+          let p = T.unpack (fileDirName <> "/" <> dirId bd)
+           in createDirectoryIfMissing True p
+                >> writeNar
+                  (TE.encodeUtf8 (T.pack p))
+                  (TE.encodeUtf8 (dirName bd))
+                  (dirContent bd)
+      )
+      (modFiles br)
 
 data PkgTree
   = PkgLeaf (NEL.NonEmpty Text) (Derivation NixDrv)
@@ -503,7 +508,7 @@ buildPkgTree pt =
                 )
             )
         )
-        (fmap (fileDirName,) d)
+        d
   where
     collectDepsTL = traverse_ collectDepsT
     collectDepsT (PkgLeaf _ d) = addVertex d
@@ -552,19 +557,19 @@ instance BuiltinFetchUrl NixDrv where
 
 instance BuiltinAddText NixDrv where
   addTextFile n c =
-    let d = textFile NonExecutable c
+    let d = Regular NonExecutable (TE.encodeUtf8 c)
      in storePath
           ( DrvDir
               ( DirDrv
                   { dirName = n,
-                    dirContent = d,
+                    dirContent = Nar d,
                     dirId = mkIdStr n (n, d)
                   }
               )
           )
 
-instance BuiltinAddDir NixDrv where
-  addDirectory n d =
+instance BuiltinAddNar NixDrv where
+  addNar n d =
     storePath
       ( DrvDir
           ( DirDrv

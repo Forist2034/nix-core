@@ -28,6 +28,7 @@ dependencies:
   - prettyprinter ^>= 1.7
   - data-fix ^>= 0.3
   - hsnix-core
+  - nix-archive
   - directory ^>= 1.3
 
 library:
