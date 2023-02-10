@@ -228,9 +228,13 @@ writeNar fp (Nar nar) = go fp nar
             )
         )
         closeFd
-        ( \fd -> do
-            h <- fdToHandle fd
-            BS.hPut h c
+        ( \fd ->
+            BSU.unsafeUseAsCStringLen
+              c
+              ( \(ptr, len) ->
+                  void
+                    (fdWriteBuf fd (castPtr ptr) (fromIntegral len))
+              )
         )
     go n (Directory ent) =
       createDirectory n accessModes
