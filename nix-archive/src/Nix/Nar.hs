@@ -216,8 +216,8 @@ readNar = fmap Nar . go
           | isSymbolicLink stat -> SymLink <$> readSymbolicLink fp
           | otherwise -> error ("Unsupported file: " <> show fp)
 
-writeNar :: RawFilePath -> RawFilePath -> Nar -> IO ()
-writeNar fp name (Nar nar) = withCurrentDirectory fp (go name nar)
+writeNar :: RawFilePath -> Nar -> IO ()
+writeNar fp (Nar nar) = go fp nar
   where
     go n (Regular e c) =
       bracket

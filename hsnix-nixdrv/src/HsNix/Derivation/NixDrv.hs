@@ -482,8 +482,7 @@ writeBuildResult root n br =
           let p = T.unpack (fileDirName <> "/" <> dirId bd)
            in createDirectoryIfMissing True p
                 >> writeNar
-                  (TE.encodeUtf8 (T.pack p))
-                  (TE.encodeUtf8 (dirName bd))
+                  (TE.encodeUtf8 (T.pack p <> dirName bd))
                   (dirContent bd)
       )
       (modFiles br)
