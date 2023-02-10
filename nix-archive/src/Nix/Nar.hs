@@ -178,8 +178,8 @@ readFileRaw sz fp =
         BSU.unsafePackMallocCStringLen (castPtr buf, sz)
     )
 
-traverseDir :: RawFilePath -> (RawFilePath -> IO a) -> IO [a]
-traverseDir fp f =
+listDirectory :: RawFilePath -> IO [RawFilePath]
+listDirectory fp =
   bracket
     (openDirStream fp)
     closeDirStream
@@ -189,9 +189,7 @@ traverseDir fp f =
       readDirStream d >>= \p ->
         if BS.null p
           then pure l
-          else do
-            v <- f p
-            go (v : l) d
+          else go (if p /= "." && p /= ".." then p : l else l) d
 
 readNar :: RawFilePath -> IO Nar
 readNar = fmap Nar . go
@@ -212,7 +210,7 @@ readNar = fmap Nar . go
               Directory . M.fromList
                 <$> withCurrentDirectory
                   fp
-                  (traverseDir "." (\p -> (p,) <$> go p))
+                  (listDirectory "." >>= traverse (\p -> (p,) <$> go p))
           | isSymbolicLink stat -> SymLink <$> readSymbolicLink fp
           | otherwise -> error ("Unsupported file: " <> show fp)
 
