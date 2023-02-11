@@ -22,13 +22,15 @@ default-extensions:
 dependencies:
   - base ^>= 4.15
   - text ^>= 1.2
-  - unordered-containers ^>= 0.2
-  - mtl ^>= 2.2
   - cryptonite ^>= 0.29
-  - memory ^>= 0.16
   - bytestring ^>= 0.10
   - hashable ^>= 1.3
   - nix-archive
 
 library:
   source-dirs: src
+  dependencies:
+    - memory ^>= 0.16
+    - unordered-containers ^>= 0.2
+    - mtl ^>= 2.2
+    - template-haskell ^>= 2.17
