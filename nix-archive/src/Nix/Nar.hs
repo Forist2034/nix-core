@@ -3,6 +3,8 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE Strict #-}
 {-# LANGUAGE TupleSections #-}
 
 module Nix.Nar
@@ -17,26 +19,28 @@ where
 import Control.Applicative
 import Control.Exception
 import Control.Monad
+import Data.Bifunctor
 import Data.Binary
 import Data.Binary.Get
 import Data.Binary.Put
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Short as SBS
 import qualified Data.ByteString.Unsafe as BSU
 import Data.Foldable
 import Data.Functor
-import Data.Hashable (Hashable)
+import Data.Hashable
 import qualified Data.Map.Strict as M
 import Data.Semigroup
 import Foreign.Marshal.Alloc
 import Foreign.Ptr
 import GHC.Generics (Generic)
-import Instances.TH.Lift ()
 import Language.Haskell.TH.Syntax (Lift)
-import System.Posix.ByteString.FilePath
-import System.Posix.Directory.ByteString
-import System.Posix.Files.ByteString
-import System.Posix.IO.ByteString
+import System.Directory.OsPath
+import System.OsPath (osp)
+import System.OsString.Internal.Types
+import System.Posix.Files.PosixString
+import System.Posix.IO.PosixString
 
 data Executable
   = Executable
@@ -60,6 +64,14 @@ putBS bs =
         putByteString bs
         putPad (padCount l)
 
+putPS :: PosixString -> Put
+putPS (PosixString ps) =
+  let l = SBS.length ps
+   in do
+        putInt64le (fromIntegral l)
+        putShortByteString ps
+        putPad (padCount l)
+
 putParens :: Put -> Put
 putParens v = putBS "(" <> v <> putBS ")"
 
@@ -67,6 +79,13 @@ getBS :: Get ByteString
 getBS = do
   l <- fromIntegral <$> getInt64le
   getByteString l <* skip (padCount l)
+
+getPS :: Get PosixString
+getPS = do
+  l <- fromIntegral <$> getInt64le
+  s <- getByteString l
+  skip (padCount l)
+  pure (PosixString (SBS.toShort s))
 
 getBSConst :: ByteString -> Get ()
 getBSConst ex = do
@@ -80,11 +99,19 @@ getParens v = getBSConst "(" >> (v <* getBSConst ")")
 
 data NarEntry
   = Regular Executable ByteString
-  | Directory (M.Map RawFilePath NarEntry)
-  | SymLink RawFilePath
+  | Directory (M.Map PosixString NarEntry)
+  | SymLink PosixString
   deriving (Show, Eq, Ord, Lift, Generic)
 
-instance Hashable NarEntry
+instance Hashable NarEntry where
+  hashWithSalt s (Regular e bs) = hashWithSalt s (0 :: Int, e, bs)
+  hashWithSalt s (Directory d) =
+    hashWithSalt
+      s
+      ( 1 :: Int,
+        first getPosixString <$> M.toAscList d
+      )
+  hashWithSalt s (SymLink (PosixString ps)) = hashWithSalt s (3 :: Int, ps)
 
 instance Binary NarEntry where
   put ne =
@@ -107,7 +134,7 @@ instance Binary NarEntry where
                     putParens
                       ( do
                           putBS "name"
-                          putBS e
+                          putPS e
                           putBS "node"
                           put ent
                       )
@@ -116,7 +143,7 @@ instance Binary NarEntry where
             SymLink t -> do
               putBS "symlink"
               putBS "target"
-              putBS t
+              putPS t
       )
   get =
     getParens
@@ -139,7 +166,7 @@ instance Binary NarEntry where
                       >> getParens
                         ( do
                             getBSConst "name"
-                            n <- getBS
+                            n <- getPS
                             getBSConst "node"
                             ent <- get
                             pure (n, ent)
@@ -147,7 +174,7 @@ instance Binary NarEntry where
                   )
             "symlink" -> do
               getBSConst "target"
-              SymLink <$> getBS
+              SymLink <$> getPS
             t -> fail ("Invalid entry type " <> show t)
       )
 
@@ -160,17 +187,10 @@ instance Binary Nar where
   put (Nar n) = putBS "nix-archive-1" >> put n
   get = getBSConst "nix-archive-1" >> Nar <$> get
 
-withCurrentDirectory :: RawFilePath -> IO a -> IO a
-withCurrentDirectory cwd f =
-  bracket
-    (getWorkingDirectory <* changeWorkingDirectory cwd)
-    changeWorkingDirectory
-    (const f)
-
-readFileRaw :: Int -> RawFilePath -> IO ByteString
+readFileRaw :: Int -> PosixString -> IO ByteString
 readFileRaw sz fp =
   bracket
-    (openFd fp ReadOnly Nothing defaultFileFlags)
+    (openFd fp ReadOnly defaultFileFlags)
     closeFd
     ( \fd -> do
         buf <- mallocBytes sz
@@ -178,20 +198,7 @@ readFileRaw sz fp =
         BSU.unsafePackMallocCStringLen (castPtr buf, sz)
     )
 
-listDirectory :: RawFilePath -> IO [RawFilePath]
-listDirectory fp =
-  bracket
-    (openDirStream fp)
-    closeDirStream
-    (go [])
-  where
-    go l d =
-      readDirStream d >>= \p ->
-        if BS.null p
-          then pure l
-          else go (if p /= "." && p /= ".." then p : l else l) d
-
-readNar :: RawFilePath -> IO Nar
+readNar :: PosixString -> IO Nar
 readNar = fmap Nar . go
   where
     go fp = do
@@ -209,12 +216,12 @@ readNar = fmap Nar . go
           | isDirectory stat ->
               Directory . M.fromList
                 <$> withCurrentDirectory
-                  fp
-                  (listDirectory "." >>= traverse (\p -> (p,) <$> go p))
+                  (OsString fp)
+                  (listDirectory [osp|.|] >>= traverse (\(OsString p) -> (p,) <$> go p))
           | isSymbolicLink stat -> SymLink <$> readSymbolicLink fp
           | otherwise -> error ("Unsupported file: " <> show fp)
 
-writeNar :: RawFilePath -> Nar -> IO ()
+writeNar :: PosixString -> Nar -> IO ()
 writeNar fp (Nar nar) = go fp nar
   where
     go n (Regular e c) =
@@ -237,6 +244,6 @@ writeNar fp (Nar nar) = go fp nar
               )
         )
     go n (Directory ent) =
-      createDirectory n accessModes
-        >> withCurrentDirectory n (traverse_ (uncurry go) (M.toList ent))
+      createDirectory (OsString n)
+        >> withCurrentDirectory (OsString n) (traverse_ (uncurry go) (M.toList ent))
     go n (SymLink t) = createSymbolicLink t n
