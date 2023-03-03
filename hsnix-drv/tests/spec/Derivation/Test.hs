@@ -24,7 +24,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import HsNix.Derivation.Backend
-import HsNix.Derivation.Types as DT
+import HsNix.Derivation.Types as DT hiding (DerivationArg)
 import HsNix.DrvDirect.Internal.Types
 import HsNix.DrvStr
 import HsNix.Hash

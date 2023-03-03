@@ -1,3 +1,5 @@
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
+
 module HsNix.DrvStr (DrvStr (..), fromText, Quoted (..), quote) where
 
 import Data.Hashable (Hashable)

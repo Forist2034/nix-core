@@ -1,3 +1,5 @@
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
+
 module HsNix.StorePath (
   StorePath (..),
   storePathStr,

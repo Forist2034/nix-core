@@ -5,7 +5,8 @@ module HsNix.Derivation (
   B.addNar,
   srcStorePath,
   srcStorePathStr,
-  module DT,
+  module EDT,
+  DerivationArg,
   Derivation,
   derivation,
   fetchUrl,
@@ -25,7 +26,8 @@ import Data.Functor
 import qualified Data.HashMap.Strict as HM
 import qualified Data.HashSet as HS
 import qualified HsNix.Derivation.Backend as B
-import HsNix.Derivation.Types as DT
+import HsNix.Derivation.Types as EDT hiding (DerivationArg)
+import qualified HsNix.Derivation.Types as DT
 import HsNix.DrvStr
 import HsNix.Hash
 import HsNix.Internal.Derivation
@@ -43,6 +45,8 @@ srcStorePathStr = fmap storePathStr . srcStorePath
 
 fetchUrl :: NamedHashAlgo a => DrvM (FetchUrlArg a) -> Derivation
 fetchUrl = runDrvM B.fetchUrl
+
+type DerivationArg = DT.DerivationArg DrvStr StorePath
 
 derivation :: NamedHashAlgo a => DrvM (DerivationArg a) -> Derivation
 derivation = runDrvM B.derivation

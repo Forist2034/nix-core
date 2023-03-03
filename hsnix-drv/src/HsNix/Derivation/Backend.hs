@@ -111,7 +111,7 @@ drvOutputPath d (Just o) =
 toBase16Text :: Digest a -> Text
 toBase16Text = TE.decodeASCII . BAE.convertToBase BAE.Base16
 
-toEnv :: forall a. NamedHashAlgo a => DT.DerivationArg a -> M.Map Text Text
+toEnv :: forall a. NamedHashAlgo a => DerivationArg a -> M.Map Text Text
 toEnv da =
   M.fromList
     ( concat
@@ -169,7 +169,7 @@ toEnv da =
     hashModeToStr HashFlat = "flat"
     hashModeToStr HashRecursive = "recursive"
 
-    refsToStr :: Text -> Maybe [DT.Reference] -> [(Text, Text)]
+    refsToStr :: Text -> Maybe [DT.Reference SP.StorePath] -> [(Text, Text)]
     refsToStr _ Nothing = []
     refsToStr n (Just ds) =
       [ ( n,
@@ -250,7 +250,7 @@ downstreamPlaceholder n StorePath {storePathHash = StorePathHashPart h} o =
 
 mkPreDrv ::
   NamedHashAlgo a =>
-  DT.DerivationArg a ->
+  DerivationArg a ->
   [(Text, ND.DerivationOutput Text Text)] ->
   [(Derivation, [Maybe ON.OutputName])] ->
   [SrcInput] ->
@@ -309,7 +309,7 @@ hashDerivation nd inDrv =
 derivation ::
   forall a.
   NamedHashAlgo a =>
-  DT.DerivationArg a ->
+  DerivationArg a ->
   [SrcInput] ->
   [(Derivation, [Maybe ON.OutputName])] ->
   Derivation

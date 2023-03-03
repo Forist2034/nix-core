@@ -2,6 +2,7 @@ module HsNix.DrvDirect.Internal.Types (
   SrcData (..),
   SrcInput (..),
   DrvHashType (..),
+  DerivationArg,
   Derivation (..),
   BuildResult (..),
 ) where
@@ -10,7 +11,10 @@ import Data.ByteString (ByteString)
 import qualified Data.HashMap.Strict as HM
 import Data.Hashable
 import Data.Text (Text)
+import qualified HsNix.Derivation.Types as DT
+import HsNix.DrvStr
 import qualified HsNix.Internal.OutputName as ON
+import qualified HsNix.StorePath as SP
 import Nix.Nar (Nar)
 import System.Nix.StorePath
 
@@ -38,6 +42,8 @@ data DrvHashType
   = RegularHash
   | DeferredHash
   deriving (Show, Eq)
+
+type DerivationArg = DT.DerivationArg DrvStr SP.StorePath
 
 data Derivation = Derivation
   { drvName :: Text,

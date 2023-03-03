@@ -18,7 +18,6 @@ import Distribution.Client.Types.AllowNewer
 import Distribution.Compat.NonEmptySet qualified as NES
 import Distribution.Compiler
 import Distribution.License
-import Distribution.ModuleName (ModuleName, components)
 import Distribution.PackageDescription
 import Distribution.Simple.InstallDirs
 import Distribution.Simple.Setup
@@ -124,14 +123,6 @@ unConditionalSubLib l =
     unConditional l
   )
 
-simpleReexport :: ModuleName -> ModuleReexport
-simpleReexport m =
-  ModuleReexport
-    { moduleReexportOriginalPackage = Nothing,
-      moduleReexportOriginalName = m,
-      moduleReexportName = m
-    }
-
 hsnixCore :: IO LocalPackage
 hsnixCore =
   let name = "hsnix-core"
@@ -167,15 +158,7 @@ hsnixCore =
         lib <-
           addLibraryMod
             ( emptyLibrary
-                { reexportedModules =
-                    mapMaybe
-                      ( \m ->
-                          if "Internal" `elem` components m -- not reexport internal modules
-                            then Nothing
-                            else Just (simpleReexport m)
-                      )
-                      (exposedModules backendType),
-                  libBuildInfo =
+                { libBuildInfo =
                     (simpleBuildInfo "src" mempty)
                       { defaultExtensions = commonExt,
                         targetBuildDepends =
@@ -214,27 +197,10 @@ hsnixDrv =
           "text" ^>= [2, 0]
         ]
    in withCurrentDirectory root $ do
-        storepath <-
-          addLibraryMod
-            ( emptyLibrary
-                { libName = LSubLibName "storepath",
-                  libBuildInfo =
-                    (simpleBuildInfo "storepath" mempty)
-                      { defaultExtensions =
-                          [ EnableExtension Strict,
-                            EnableExtension GeneralizedNewtypeDeriving
-                          ],
-                        targetBuildDepends =
-                          commonDep
-                            ++ ["hashable" ^>= [1, 4, 2]]
-                      }
-                }
-            )
         lib <-
           addLibraryMod
             ( emptyLibrary
-                { reexportedModules = simpleReexport <$> exposedModules storepath,
-                  libBuildInfo =
+                { libBuildInfo =
                     (simpleBuildInfo "src" mempty)
                       { defaultExtensions =
                           [ EnableExtension OverloadedStrings,
@@ -258,11 +224,7 @@ hsnixDrv =
                                  Dependency
                                   "hsnix-core"
                                   anyVersion
-                                  (NES.singleton (LSubLibName "backend-types")),
-                                 Dependency
-                                  name
-                                  anyVersion
-                                  (NES.singleton (libName storepath))
+                                  (NES.singleton (LSubLibName "backend-types"))
                                ]
                       }
                 }
@@ -302,14 +264,7 @@ hsnixDrv =
                                  anyVersionDep "cryptonite",
                                  anyVersionDep "nix-archive",
                                  anyVersionDep "hnix-store-core",
-                                 Dependency
-                                  name
-                                  anyVersion
-                                  ( NES.fromNonEmpty
-                                      [ libName lib,
-                                        libName storepath
-                                      ]
-                                  ),
+                                 Dependency name anyVersion mainLibSet,
                                  Dependency
                                   "hsnix-core"
                                   anyVersion
@@ -342,7 +297,6 @@ hsnixDrv =
                           { extraSrcFiles = testData
                           },
                       condLibrary = Just (unConditional lib),
-                      condSubLibraries = [unConditionalSubLib storepath],
                       condTestSuites =
                         [ unConditionalTest testSpec,
                           unConditionalTest testSignature

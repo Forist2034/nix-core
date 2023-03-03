@@ -17,6 +17,7 @@ import Data.Hashable (Hashable)
 import Data.Text (Text)
 import HsNix.Derivation.Types
 import HsNix.Hash
+import HsNix.DrvStr
 import HsNix.StorePath
 import Nix.Nar (Nar)
 
@@ -40,7 +41,7 @@ instance Eq Derivation
 instance Show Derivation
 instance Hashable Derivation
 
-derivation :: NamedHashAlgo a => DerivationArg a -> [SrcInput] -> [(Derivation, [Maybe OutputName])] -> Derivation
+derivation :: NamedHashAlgo a => DerivationArg DrvStr StorePath a -> [SrcInput] -> [(Derivation, [Maybe OutputName])] -> Derivation
 
 fetchUrl :: NamedHashAlgo a => FetchUrlArg a -> [SrcInput] -> [(Derivation, [Maybe OutputName])] -> Derivation
 

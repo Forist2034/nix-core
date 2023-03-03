@@ -12,12 +12,12 @@ library
         HsNix.Derivation
         HsNix.Internal.Derivation
 
-    reexported-modules:
-        HsNix.Derivation.Types,
-        HsNix.Hash,
-        HsNix.System
+    signatures:
+        HsNix.Derivation.Backend
+        HsNix.DrvStr
+        HsNix.DrvStr.Builder
+        HsNix.StorePath
 
-    signatures:         HsNix.Derivation.Backend
     hs-source-dirs:     src
     default-language:   Haskell2010
     default-extensions: OverloadedStrings Strict
@@ -45,11 +45,6 @@ library backend-types
         HsNix.Internal.StorePathName
         HsNix.Internal.System
         HsNix.System
-
-    signatures:
-        HsNix.DrvStr
-        HsNix.DrvStr.Builder
-        HsNix.StorePath
 
     visibility:         public
     hs-source-dirs:     backend-types
