@@ -7,19 +7,17 @@
 {-# LANGUAGE Strict #-}
 {-# LANGUAGE TupleSections #-}
 
-module Nix.Nar
-  ( Executable (..),
-    NarEntry (..),
-    Nar (..),
-    readNar,
-    writeNar,
-  )
-where
+module Nix.Nar (
+  Executable (..),
+  NarEntry (..),
+  Nar (..),
+  readNar,
+  writeNar,
+) where
 
 import Control.Applicative
 import Control.Exception
 import Control.Monad
-import Data.Bifunctor
 import Data.Binary
 import Data.Binary.Get
 import Data.Binary.Put
@@ -29,7 +27,7 @@ import qualified Data.ByteString.Short as SBS
 import qualified Data.ByteString.Unsafe as BSU
 import Data.Foldable
 import Data.Functor
-import Data.Hashable
+import Data.Hashable (Hashable)
 import qualified Data.Map.Strict as M
 import Data.Semigroup
 import Foreign.Marshal.Alloc
@@ -103,15 +101,7 @@ data NarEntry
   | SymLink PosixString
   deriving (Show, Eq, Ord, Lift, Generic)
 
-instance Hashable NarEntry where
-  hashWithSalt s (Regular e bs) = hashWithSalt s (0 :: Int, e, bs)
-  hashWithSalt s (Directory d) =
-    hashWithSalt
-      s
-      ( 1 :: Int,
-        first getPosixString <$> M.toAscList d
-      )
-  hashWithSalt s (SymLink (PosixString ps)) = hashWithSalt s (3 :: Int, ps)
+instance Hashable NarEntry
 
 instance Binary NarEntry where
   put ne =

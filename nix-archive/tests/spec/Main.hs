@@ -1,3 +1,5 @@
+{-# LANGUAGE QuasiQuotes #-}
+
 module Main (main) where
 
 import Data.Binary
@@ -5,6 +7,7 @@ import qualified Data.ByteString.Lazy as LBS
 import Data.Foldable
 import qualified Data.Map.Strict as M
 import Nix.Nar
+import System.OsPath.Posix
 import Test.Hspec
 
 type Case = (String, Nar, FilePath)
@@ -20,16 +23,16 @@ testCases =
       "tests/spec/files/executable_file.nar"
     ),
     ( "symbol link",
-      Nar (SymLink "../s"),
+      Nar (SymLink [pstr|../s|]),
       "tests/spec/files/sym_link.nar"
     ),
     ( "simple directory",
       Nar
         ( Directory
             ( M.fromAscList
-                [ ("k1", Regular NonExecutable mempty),
-                  ("k2", Regular NonExecutable "123456"),
-                  ("k3", Regular Executable "123\n456\n")
+                [ ([pstr|k1|], Regular NonExecutable mempty),
+                  ([pstr|k2|], Regular NonExecutable "123456"),
+                  ([pstr|k3|], Regular Executable "123\n456\n")
                 ]
             )
         ),
