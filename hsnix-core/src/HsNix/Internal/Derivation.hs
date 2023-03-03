@@ -1,60 +1,72 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE ExplicitForAll #-}
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
 
-module HsNix.Internal.Derivation
-  ( DerivType (..),
-    DerivationArg (..),
-    defaultDrvArg,
-  )
-where
+module HsNix.Internal.Derivation (
+  SrcInput,
+  Derivation (..),
+  DrvDep (..),
+  DrvM (..),
+  runDrvM,
+) where
 
-import Data.Hashable (Hashable)
-import qualified Data.List.NonEmpty as NEL
-import Data.Text (Text)
+import Control.Monad.Writer.Strict
+import Data.Bifunctor
+import qualified Data.HashMap.Strict as HM
+import qualified Data.HashSet as HS
+import Data.Hashable
+import qualified Data.Vector as V
 import GHC.Generics (Generic)
-import HsNix.Hash
-import HsNix.System
+import qualified HsNix.Derivation.Backend as B
+import HsNix.Derivation.Types
 
-data DerivType a
-  = InputAddressed (NEL.NonEmpty Text)
-  | FixedOutput HashMode (Hash a)
-  | ContentAddressed HashMode (NEL.NonEmpty Text)
-  deriving (Show, Eq, Generic)
+type SrcInput = B.SrcInput
 
-instance Hashable (DerivType a)
-
-data DerivationArg txt a = DerivationArg
-  { drvName :: Text,
-    drvBuilder :: txt,
-    drvSystem :: System,
-    drvArgs :: [txt],
-    drvEnv, drvPassAsFile :: [(Text, txt)],
-    drvType :: DerivType a,
-    drvAllowedReferences,
-    drvAllowedRequisites,
-    drvDisallowedReferences,
-    drvDisallowedRequisites ::
-      Maybe [txt],
-    drvPreferLocalBuild, drvAllowSubstitutes :: Bool
+data Derivation = Derivation
+  { drvInfo :: B.Derivation,
+    drvInputDrv :: V.Vector Derivation,
+    drvInputSrc :: V.Vector B.SrcInput
   }
-  deriving (Show, Eq, Generic)
+  deriving (Show, Generic)
 
-instance (Hashable txt) => Hashable (DerivationArg txt a)
+instance Eq Derivation where
+  l == r = drvInfo l == drvInfo r
 
-defaultDrvArg :: forall a txt. Text -> txt -> System -> DerivationArg txt a
-defaultDrvArg n b s =
-  DerivationArg
-    { drvName = n,
-      drvBuilder = b,
-      drvSystem = s,
-      drvArgs = [],
-      drvEnv = [],
-      drvPassAsFile = [],
-      drvType = InputAddressed (NEL.singleton "out"),
-      drvAllowedReferences = Nothing,
-      drvAllowedRequisites = Nothing,
-      drvDisallowedReferences = Nothing,
-      drvDisallowedRequisites = Nothing,
-      drvPreferLocalBuild = False,
-      drvAllowSubstitutes = True
-    }
+instance Hashable Derivation where
+  hashWithSalt s = hashWithSalt s . drvInfo
+
+data DrvDep = DrvDep
+  { drvDrvDep :: HM.HashMap Derivation (HS.HashSet (Maybe OutputName)),
+    drvSrcDep :: HS.HashSet SrcInput
+  }
+
+instance Semigroup DrvDep where
+  l <> r =
+    DrvDep
+      { drvDrvDep = HM.unionWith HS.union (drvDrvDep l) (drvDrvDep r),
+        drvSrcDep = HS.union (drvSrcDep l) (drvSrcDep r)
+      }
+
+instance Monoid DrvDep where
+  mempty = DrvDep HM.empty HS.empty
+
+newtype DrvM a = DrvM (Writer DrvDep a)
+  deriving (Functor, Applicative)
+
+runDrvM ::
+  (a -> [B.SrcInput] -> [(B.Derivation, [Maybe OutputName])] -> B.Derivation) ->
+  DrvM a ->
+  Derivation
+runDrvM f (DrvM dm) =
+  let (da, dep) = runWriter dm
+      srcs = HS.toList (drvSrcDep dep)
+   in Derivation
+        { drvInfo =
+            f
+              da
+              srcs
+              ( bimap drvInfo HS.toList
+                  <$> HM.toList (drvDrvDep dep)
+              ),
+          drvInputDrv = V.fromList (HM.keys (drvDrvDep dep)),
+          drvInputSrc = V.fromList srcs
+        }

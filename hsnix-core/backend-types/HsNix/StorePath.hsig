@@ -1,0 +1,12 @@
+signature HsNix.StorePath (StorePath, storePathStr) where
+
+import Data.Hashable (Hashable)
+import HsNix.DrvStr
+
+data StorePath
+
+instance Eq StorePath
+instance Show StorePath
+instance Hashable StorePath
+
+storePathStr :: StorePath -> DrvStr

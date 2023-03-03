@@ -1,0 +1,36 @@
+signature HsNix.DrvStr.Builder
+  (
+    Builder,
+    singleton,
+    fromDrvStr,
+    fromStorePath,
+    fromText,
+    decimal,
+    hexadecimal,
+    toDrvStr,
+  ) where
+
+import Data.String (IsString)
+import Data.Text (Text)
+import HsNix.StorePath (StorePath)
+import HsNix.DrvStr (DrvStr)
+
+data Builder
+
+instance Semigroup Builder
+instance Monoid Builder
+instance IsString Builder
+
+singleton :: Char -> Builder
+
+fromDrvStr :: DrvStr -> Builder
+
+fromStorePath :: StorePath -> Builder
+
+fromText :: Text -> Builder
+
+decimal :: Integral a => a -> Builder
+
+hexadecimal :: Integral a => a -> Builder
+
+toDrvStr :: Builder -> DrvStr

@@ -1,0 +1,22 @@
+signature HsNix.DrvStr (DrvStr, fromText, Quoted(..), quote) where
+
+import Data.Hashable (Hashable)
+import Data.String (IsString)
+import Data.Text (Text)
+
+data DrvStr
+
+instance Eq DrvStr
+instance Show DrvStr
+instance Hashable DrvStr
+instance Semigroup DrvStr
+instance Monoid DrvStr
+instance IsString DrvStr
+
+fromText :: Text -> DrvStr
+
+data Quoted
+  = QChar Char
+  | QStr DrvStr
+
+quote :: (Char -> Bool) -> DrvStr -> [Quoted]

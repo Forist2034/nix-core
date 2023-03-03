@@ -1,0 +1,51 @@
+signature HsNix.Derivation.Backend (
+    SrcInput,
+    addTextFile,
+    addBinaryFile,
+    addNar,
+    srcStorePath,
+    Derivation,
+    derivation,
+    fetchUrl,
+    drvOutputPath,
+    BuildResult,
+    buildDrv
+  ) where
+
+import Data.ByteString (ByteString)
+import Data.Hashable (Hashable)
+import Data.Text (Text)
+import HsNix.Derivation.Types
+import HsNix.Hash
+import HsNix.StorePath
+import Nix.Nar (Nar)
+
+data SrcInput
+
+instance Eq SrcInput
+instance Show SrcInput
+instance Hashable SrcInput
+
+addTextFile :: StorePathName -> Text -> SrcInput
+
+addBinaryFile :: StorePathName -> ByteString -> SrcInput
+
+addNar :: StorePathName -> Nar -> SrcInput
+
+srcStorePath :: SrcInput -> StorePath
+
+data Derivation
+
+instance Eq Derivation
+instance Show Derivation
+instance Hashable Derivation
+
+derivation :: NamedHashAlgo a => DerivationArg a -> [SrcInput] -> [(Derivation, [Maybe OutputName])] -> Derivation
+
+fetchUrl :: NamedHashAlgo a => FetchUrlArg a -> [SrcInput] -> [(Derivation, [Maybe OutputName])] -> Derivation
+
+drvOutputPath :: Derivation -> Maybe OutputName -> StorePath
+
+data BuildResult
+
+buildDrv :: [SrcInput] -> [Derivation] -> BuildResult

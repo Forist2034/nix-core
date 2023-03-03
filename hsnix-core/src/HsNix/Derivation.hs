@@ -1,86 +1,91 @@
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeFamilies #-}
+module HsNix.Derivation (
+  SrcInput,
+  B.addTextFile,
+  B.addBinaryFile,
+  B.addNar,
+  srcStorePath,
+  srcStorePathStr,
+  module DT,
+  Derivation,
+  derivation,
+  fetchUrl,
+  drvStorePathOf,
+  drvStorePathStrOf,
+  DrvM,
+  buildDerivations,
+  buildDerivation,
+) where
 
-module HsNix.Derivation
-  ( DerivationArg,
-    module D,
-    AsDrvStr (..),
-    Quoted (..),
-    HasStrBuilder (..),
-    ApplicativeDeriv (..),
-    storePathStrOf,
-    storePath,
-    storePathStr,
-  )
-where
-
-import Data.Hashable (Hashable)
-import Data.String
-import Data.Text (Text)
+import Control.Monad
+import Control.Monad.State.Strict
+import Control.Monad.Writer.Strict
+import Data.Bifunctor
+import Data.Foldable
+import Data.Functor
+import qualified Data.HashMap.Strict as HM
+import qualified Data.HashSet as HS
+import qualified HsNix.Derivation.Backend as B
+import HsNix.Derivation.Types as DT
+import HsNix.DrvStr
 import HsNix.Hash
-import HsNix.Internal.Derivation as D hiding (DerivationArg)
-import qualified HsNix.Internal.Derivation as ID
+import HsNix.Internal.Derivation
+import HsNix.StorePath
 
-class AsDrvStr s m where
-  toDrvStr :: s -> m
+srcStorePath :: SrcInput -> DrvM StorePath
+srcStorePath s =
+  DrvM
+    ( let sp = B.srcStorePath s
+       in tell (mempty {drvSrcDep = HS.singleton s}) $> sp
+    )
 
-type DerivationArg m = ID.DerivationArg (DrvStr m)
+srcStorePathStr :: SrcInput -> DrvM DrvStr
+srcStorePathStr = fmap storePathStr . srcStorePath
 
-type DrvValue m = (Eq m, Hashable m, Show m)
+fetchUrl :: NamedHashAlgo a => DrvM (FetchUrlArg a) -> Derivation
+fetchUrl = runDrvM B.fetchUrl
 
-type StrValue m = (IsString m, Monoid m)
+derivation :: NamedHashAlgo a => DrvM (DerivationArg a) -> Derivation
+derivation = runDrvM B.derivation
 
-data Quoted s
-  = QStr s
-  | QEscape Char
+drvStorePathOf :: Derivation -> Maybe DT.OutputName -> DrvM StorePath
+drvStorePathOf d o =
+  DrvM
+    ( let sp = B.drvOutputPath (drvInfo d) o
+       in tell (mempty {drvDrvDep = HM.singleton d (HS.singleton o)}) $> sp
+    )
 
-class
-  ( StrValue (DrvStrBuilder m),
-    AsDrvStr (DrvStrBuilder m) (DrvStr m)
-  ) =>
-  HasStrBuilder m
+drvStorePathStrOf :: Derivation -> Maybe DT.OutputName -> DrvM DrvStr
+drvStorePathStrOf d o = storePathStr <$> drvStorePathOf d o
+
+type BdM =
+  State
+    ( ([B.Derivation], HS.HashSet B.SrcInput),
+      HS.HashSet B.Derivation
+    )
+
+buildDerivations :: [Derivation] -> B.BuildResult
+buildDerivations ds =
+  let (d, s) =
+        fst
+          ( execState
+              (traverse_ go ds)
+              (([], HS.empty), HS.empty)
+          )
+   in B.buildDrv (HS.toList s) (reverse d)
   where
-  data DrvStrBuilder m
-  fromDrvStr :: DrvStr m -> DrvStrBuilder m
-  quote :: (Char -> Bool) -> DrvStr m -> [Quoted (DrvStr m)]
+    go :: Derivation -> BdM ()
+    go d@Derivation {drvInfo = di} = do
+      ex <- gets (HS.member di . snd)
+      unless ex $ do
+        modify (second (HS.insert di))
+        traverse_ go (drvInputDrv d)
+        modify
+          ( first
+              ( bimap
+                  (di :)
+                  (\s -> foldr' HS.insert s (drvInputSrc d))
+              )
+          )
 
--- | Only use applicative not monad.
---    Avoid missing dependencies like
---    @
---      derivation $ do
---        x <- d1
---        y <- storePathStr
---          (derivation (pure (defaultDrvArg "foo" y "bar")))
---        -- dependent x not recorded in y
---        pure (defaultDrvArg "a" y "x")
---    @
-class
-  ( Applicative m,
-    DrvValue (DrvStr m),
-    StrValue (DrvStr m),
-    AsDrvStr Text (DrvStr m),
-    HasStrBuilder m,
-    DrvValue (StorePath m),
-    AsDrvStr (StorePath m) (DrvStr m),
-    DrvValue (Derivation m)
-  ) =>
-  ApplicativeDeriv m
-  where
-  data DrvStr m
-  data StorePath m
-  data Derivation m
-  data BuildResult m
-  derivation :: NamedHashAlgo a => m (DerivationArg m a) -> Derivation m
-  storePathOf :: Derivation m -> Maybe Text -> m (StorePath m)
-  build :: Derivation m -> BuildResult m
-
-storePathStrOf :: ApplicativeDeriv m => Derivation m -> Maybe Text -> m (DrvStr m)
-storePathStrOf d o = toDrvStr <$> storePathOf d o
-
-storePath :: ApplicativeDeriv m => Derivation m -> m (StorePath m)
-storePath d = storePathOf d Nothing
-
-storePathStr :: ApplicativeDeriv m => Derivation m -> m (DrvStr m)
-storePathStr d = toDrvStr <$> storePath d
+buildDerivation :: Derivation -> B.BuildResult
+buildDerivation d = buildDerivations [d]
