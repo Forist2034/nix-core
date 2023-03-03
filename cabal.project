@@ -1,0 +1,3 @@
+packages: nix-archive hsnix-core hsnix-nixdrv
+test-options: "--color"
+test-show-details: streaming
