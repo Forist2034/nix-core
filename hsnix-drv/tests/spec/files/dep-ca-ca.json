@@ -1,0 +1,16 @@
+{
+  "default-output": "lib",
+  "default-store-path": "/1wcrhqwfdbqzcdly1zpndxxafd1v5id8j80l1kl1liqggpk2vghi",
+  "drv-path": "/nix/store/mflq5kqnjkd4h2mibrfyc9x376j5n2lh-dep-ca-ca.drv",
+  "name": "dep-ca-ca",
+  "outputs": {
+    "bin": "/0pqxpzm953rhivad92d5ksqaq047iw4b97cj7sl12iqqpd6g8j6w",
+    "dev": "/100cpa3ib94mq1f1krd7amf9i7bzbgqxj2pdyxaqsj33zkwzvlj3",
+    "lib": "/1wcrhqwfdbqzcdly1zpndxxafd1v5id8j80l1kl1liqggpk2vghi",
+    "out": "/1hr2h4xmgdgphsnr16yk5giirn6350dkwmlk3zpcckg2f4yj1h0i"
+  },
+  "refs": [
+    "/nix/store/fjssifq6i1d229via911a66y58752vc3-simple-ca.drv",
+    "/nix/store/13nh2v5wl6hi9hapicilfkb1viw54kma-dep-src-ca.drv"
+  ]
+}

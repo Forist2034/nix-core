@@ -1,0 +1,15 @@
+{
+  "default-output": "lib",
+  "default-store-path": "/nix/store/6hn1msl7qwd7rzbi7gfhhxgqzvhrgqny-dep-src-ia-lib",
+  "drv-path": "/nix/store/h7867qs1l1xpq0bmk1nlgr5870rdmigg-dep-src-ia.drv",
+  "name": "dep-src-ia",
+  "outputs": {
+    "bin": "/nix/store/8x6jdg9dkyh0kdyifcmjialalwfrkq49-dep-src-ia-bin",
+    "dev": "/nix/store/zf664929qxznaha12w74c0ralqr69yv5-dep-src-ia-dev",
+    "lib": "/nix/store/6hn1msl7qwd7rzbi7gfhhxgqzvhrgqny-dep-src-ia-lib",
+    "out": "/nix/store/xwhdvgpynnsyz78r625p4x7j4mflg4cm-dep-src-ia"
+  },
+  "refs": [
+    "/nix/store/2jsq549zbk2sjd175m7rlnk218f8m3nd-text-test"
+  ]
+}

@@ -1,3 +1,4 @@
-packages: nix-archive hsnix-core
+packages: nix-archive hsnix-core hsnix-drv
+allow-newer: relude:base, relude:ghc-prim
 test-options: "--color"
 test-show-details: streaming

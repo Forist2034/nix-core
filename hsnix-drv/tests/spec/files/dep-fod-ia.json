@@ -1,0 +1,15 @@
+{
+  "default-output": "lib",
+  "default-store-path": "/nix/store/n3a7j69cfzj1gjzyx3dqbl7dp23wn7iw-dep-fod-ia-lib",
+  "drv-path": "/nix/store/g51ql0q46fq2x03dvhb3a92xak9v0l8s-dep-fod-ia.drv",
+  "name": "dep-fod-ia",
+  "outputs": {
+    "bin": "/nix/store/3fk6994p2iiy59qpd80r2dab1j7rn95b-dep-fod-ia-bin",
+    "dev": "/nix/store/9h54ws3b45wy2nvpgp28z3bjlxdsl43v-dep-fod-ia-dev",
+    "lib": "/nix/store/n3a7j69cfzj1gjzyx3dqbl7dp23wn7iw-dep-fod-ia-lib",
+    "out": "/nix/store/hmj8l0fvlw0lzrh9y7gz4r1b6qbfws3w-dep-fod-ia"
+  },
+  "refs": [
+    "/nix/store/88q4qalcs8pp737pbvipgmdz3r98js01-simple-fod.drv"
+  ]
+}

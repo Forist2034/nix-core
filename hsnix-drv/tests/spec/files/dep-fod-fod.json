@@ -1,0 +1,13 @@
+{
+  "default-output": "out",
+  "default-store-path": "/nix/store/b30dpkm1z0jgjcidv8rcd38fkvsl1qni-dep-fod-fod",
+  "drv-path": "/nix/store/88l92fxnb9vyzbgxc644wym7b6v0vmxd-dep-fod-fod.drv",
+  "name": "dep-fod-fod",
+  "outputs": {
+    "out": "/nix/store/b30dpkm1z0jgjcidv8rcd38fkvsl1qni-dep-fod-fod"
+  },
+  "refs": [
+    "/nix/store/1w942i3l2nmcpwydsars1m1323sf74k2-simple-fod-rec.drv",
+    "/nix/store/fiy7aans61q815xp7dajxmi9cjb4jdg8-dep-src-fod.drv"
+  ]
+}

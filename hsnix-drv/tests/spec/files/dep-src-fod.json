@@ -1,0 +1,12 @@
+{
+  "default-output": "out",
+  "default-store-path": "/nix/store/7cmx7qyahs0j1m9fmpj4pcmxl363vks3-dep-src-fod",
+  "drv-path": "/nix/store/fiy7aans61q815xp7dajxmi9cjb4jdg8-dep-src-fod.drv",
+  "name": "dep-src-fod",
+  "outputs": {
+    "out": "/nix/store/7cmx7qyahs0j1m9fmpj4pcmxl363vks3-dep-src-fod"
+  },
+  "refs": [
+    "/nix/store/2jsq549zbk2sjd175m7rlnk218f8m3nd-text-test"
+  ]
+}

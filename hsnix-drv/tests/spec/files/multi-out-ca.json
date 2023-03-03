@@ -1,0 +1,13 @@
+{
+  "default-output": "lib",
+  "default-store-path": "/00qycqsc27fm66h0hpwd827z7yqdhwqdpjxddprn89z1sdsrrw94",
+  "drv-path": "/nix/store/jw388x771acq6gba03cs3vsabzl7r64h-multi-out-ca.drv",
+  "name": "multi-out-ca",
+  "outputs": {
+    "bin": "/1zlcpypc92va8y25q6kqyv2py16hxyvcxdr2c10ghxcr790iglx0",
+    "dev": "/1r7xaz5lfrx08p06cl2gjpd6468bzk3d9hx5v979m3pf1dmild9m",
+    "lib": "/00qycqsc27fm66h0hpwd827z7yqdhwqdpjxddprn89z1sdsrrw94",
+    "out": "/1nsxc2r5fni0l3s1c73l52bmlasxbhyppyj0zkva4kx8dmnp3i63"
+  },
+  "refs": []
+}

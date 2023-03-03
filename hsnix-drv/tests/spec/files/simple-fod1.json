@@ -1,0 +1,10 @@
+{
+  "default-output": "out",
+  "default-store-path": "/nix/store/m4zzw9ba5665m1iy21q3w1v7m7klyw3k-simple-fod1",
+  "drv-path": "/nix/store/rbgrgm48knjpxvdj3kj0f9izls1867ji-simple-fod1.drv",
+  "name": "simple-fod1",
+  "outputs": {
+    "out": "/nix/store/m4zzw9ba5665m1iy21q3w1v7m7klyw3k-simple-fod1"
+  },
+  "refs": []
+}

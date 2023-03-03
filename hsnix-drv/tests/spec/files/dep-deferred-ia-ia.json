@@ -1,0 +1,16 @@
+{
+  "default-output": "lib",
+  "default-store-path": "/1mfdly7vvappbf886amh9yzbhb36i28amaaag449rd0alszdjkdk",
+  "drv-path": "/nix/store/p8902w5xkk9ydwpiqi9xadmrvfg8i6qx-dep-deferred-ia-ia.drv",
+  "name": "dep-deferred-ia-ia",
+  "outputs": {
+    "bin": "/0zl39n3cfjbgva2q7qfnkjyss1yxfc6243fxhxg0ccxcm91spznc",
+    "dev": "/11bb1ch74z9dgqyxkizcsbdaxrmjgnwh28pii2llp03grqzy7n1z",
+    "lib": "/1mfdly7vvappbf886amh9yzbhb36i28amaaag449rd0alszdjkdk",
+    "out": "/01x5xvv97a7i19kdzrjzkjnagx2d32yv78vvhdmi6zl8ljfa3pf7"
+  },
+  "refs": [
+    "/nix/store/fcfcjgsyf0ncfwhmh7hj2p849ddq1qqr-simple-ia.drv",
+    "/nix/store/ick3qbp6if17fv62v6xg84wsrq33i7jg-dep-ca-ia.drv"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "default-output": "out",
+  "default-store-path": "/1lqb1wzjd8agn0fkvb5imk1i9c71wmh5qpdnhhkliss250mr9mh9",
+  "drv-path": "/nix/store/znh871zi7qadpr1fj43lng3xxhpxlr3a-simple-ca-rec.drv",
+  "name": "simple-ca-rec",
+  "outputs": {
+    "out": "/1lqb1wzjd8agn0fkvb5imk1i9c71wmh5qpdnhhkliss250mr9mh9"
+  },
+  "refs": []
+}

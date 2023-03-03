@@ -14,6 +14,7 @@ import Data.Maybe
 import Data.Set qualified as S
 import Distribution.CabalSpecVersion
 import Distribution.Client.ProjectConfig
+import Distribution.Client.Types.AllowNewer
 import Distribution.Compat.NonEmptySet qualified as NES
 import Distribution.Compiler
 import Distribution.License
@@ -204,14 +205,179 @@ hsnixCore =
               }
           )
 
+hsnixDrv :: IO LocalPackage
+hsnixDrv =
+  let name = "hsnix-drv"
+      root = "hsnix-drv"
+      commonDep =
+        [ "base" @@ [versionRangeQ| >= 4.15 && < 4.18 |],
+          "text" ^>= [2, 0]
+        ]
+   in withCurrentDirectory root $ do
+        storepath <-
+          addLibraryMod
+            ( emptyLibrary
+                { libName = LSubLibName "storepath",
+                  libBuildInfo =
+                    (simpleBuildInfo "storepath" mempty)
+                      { defaultExtensions =
+                          [ EnableExtension Strict,
+                            EnableExtension GeneralizedNewtypeDeriving
+                          ],
+                        targetBuildDepends =
+                          commonDep
+                            ++ ["hashable" ^>= [1, 4, 2]]
+                      }
+                }
+            )
+        lib <-
+          addLibraryMod
+            ( emptyLibrary
+                { reexportedModules = simpleReexport <$> exposedModules storepath,
+                  libBuildInfo =
+                    (simpleBuildInfo "src" mempty)
+                      { defaultExtensions =
+                          [ EnableExtension OverloadedStrings,
+                            EnableExtension Strict
+                          ],
+                        otherModules = ["HsNix.DrvDirect.Internal.Hash"],
+                        targetBuildDepends =
+                          commonDep
+                            ++ [ "bytestring" ^>= [0, 11],
+                                 "containers" ^>= [0, 6, 6],
+                                 "unordered-containers" ^>= [0, 2],
+                                 "vector" ^>= [0, 13],
+                                 "hashable" ^>= [1, 4, 2],
+                                 "memory" @@ [versionRangeQ| >= 0.16 && < 0.19 |],
+                                 "binary" ^>= [0, 8],
+                                 "cryptonite" @@ [versionRangeQ| >= 0.29 && < 0.31 |],
+                                 "nix-derivation" ^>= [1, 1],
+                                 anyVersionDep "nix-archive",
+                                 "hnix-store-core" ^>= [0, 6],
+                                 "hnix-store-remote" ^>= [0, 6],
+                                 Dependency
+                                  "hsnix-core"
+                                  anyVersion
+                                  (NES.singleton (LSubLibName "backend-types")),
+                                 Dependency
+                                  name
+                                  anyVersion
+                                  (NES.singleton (libName storepath))
+                               ]
+                      }
+                }
+            )
+        testData <-
+          fmap (\p -> "tests" </> "spec" </> "files" </> p) . S.toAscList
+            <$> listDirRec ("tests" </> "spec" </> "files")
+        testSpec <- do
+          mods <- listMod "hs" ("tests" </> "spec")
+          pure
+            ( emptyTestSuite
+                { testName = "spec",
+                  testInterface = TestSuiteExeV10 (mkVersion [1, 0]) "Main.hs",
+                  testBuildInfo =
+                    (simpleBuildInfo ("tests" </> "spec") mempty)
+                      { otherModules = S.toAscList (S.delete "Main" mods),
+                        defaultExtensions =
+                          [ EnableExtension OverloadedStrings,
+                            EnableExtension OverloadedRecordDot,
+                            EnableExtension TypeApplications,
+                            EnableExtension StrictData
+                          ],
+                        buildToolDepends =
+                          [ ExeDependency
+                              "hspec-discover"
+                              "hspec-discover"
+                              (majorBoundVersion (mkVersion [2]))
+                          ],
+                        targetBuildDepends =
+                          commonDep
+                            ++ [ "hspec" @@ [versionRangeQ| >= 2.8 && < 2.11 |],
+                                 "aeson" ^>= [2, 1],
+                                 anyVersionDep "bytestring",
+                                 anyVersionDep "containers",
+                                 anyVersionDep "unordered-containers",
+                                 anyVersionDep "filepath",
+                                 anyVersionDep "cryptonite",
+                                 anyVersionDep "nix-archive",
+                                 anyVersionDep "hnix-store-core",
+                                 Dependency
+                                  name
+                                  anyVersion
+                                  ( NES.fromNonEmpty
+                                      [ libName lib,
+                                        libName storepath
+                                      ]
+                                  ),
+                                 Dependency
+                                  "hsnix-core"
+                                  anyVersion
+                                  (NES.singleton (LSubLibName "backend-types"))
+                               ]
+                      }
+                }
+            )
+        let testSignature =
+              emptyTestSuite
+                { testName = "signature",
+                  testInterface = TestSuiteExeV10 (mkVersion [1, 0]) "Main.hs",
+                  testBuildInfo =
+                    (simpleBuildInfo ("tests" </> "signature") mempty)
+                      { targetBuildDepends =
+                          [ anyVersionDep "base",
+                            Dependency name anyVersion mainLibSet,
+                            anyVersionDep "hsnix-core"
+                          ]
+                      }
+                }
+        pure
+          ( LocalPackage
+              { lpName = name,
+                lpRoot = root,
+                lpDesc =
+                  emptyGenericPackageDescription
+                    { packageDescription =
+                        (simplePkgDesc name [0, 1, 0, 0])
+                          { extraSrcFiles = testData
+                          },
+                      condLibrary = Just (unConditional lib),
+                      condSubLibraries = [unConditionalSubLib storepath],
+                      condTestSuites =
+                        [ unConditionalTest testSpec,
+                          unConditionalTest testSignature
+                        ]
+                    }
+              }
+          )
+
+mkRelaxDep :: PackageName -> [PackageName] -> [RelaxedDep]
+mkRelaxDep p =
+  fmap
+    ( RelaxedDep
+        (RelaxDepScopePackage p)
+        RelaxDepModNone
+        . RelaxDepSubjectPkg
+    )
+
 main :: IO ()
 main = do
-  pkgs <- sequence [nixArchive, hsnixCore]
+  pkgs <- sequence [nixArchive, hsnixCore, hsnixDrv]
   traverse_ (writeLocalPackage ".") pkgs
   writeProjectConfigFile
     "cabal.project"
     ( (simpleCabalProject pkgs)
-        { projectConfigLocalPackages =
+        { projectConfigShared =
+            mempty
+              { projectConfigAllowNewer =
+                  Just
+                    ( AllowNewer
+                        ( RelaxDepsSome
+                            (mkRelaxDep "relude" ["base", "ghc-prim"])
+                        )
+                    )
+              },
+          projectConfigLocalPackages =
             mempty
               { packageConfigTestShowDetails = toFlag Streaming,
                 packageConfigTestTestOptions = [toPathTemplate "--color"]

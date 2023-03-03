@@ -1,0 +1,10 @@
+{
+  "default-output": "out",
+  "default-store-path": "/nix/store/ms312dcr5pfvf2s5x0ql3n1q6f7419mn-simple-fod-rec",
+  "drv-path": "/nix/store/1w942i3l2nmcpwydsars1m1323sf74k2-simple-fod-rec.drv",
+  "name": "simple-fod-rec",
+  "outputs": {
+    "out": "/nix/store/ms312dcr5pfvf2s5x0ql3n1q6f7419mn-simple-fod-rec"
+  },
+  "refs": []
+}

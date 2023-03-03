@@ -1,0 +1,10 @@
+{
+  "default-output": "out",
+  "default-store-path": "/1smpj95h5n3n3kryfrarlzd3m2cd9jlk3sawkhkcv2raakr58w6v",
+  "drv-path": "/nix/store/fjssifq6i1d229via911a66y58752vc3-simple-ca.drv",
+  "name": "simple-ca",
+  "outputs": {
+    "out": "/1smpj95h5n3n3kryfrarlzd3m2cd9jlk3sawkhkcv2raakr58w6v"
+  },
+  "refs": []
+}

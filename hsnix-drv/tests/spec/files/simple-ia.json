@@ -1,0 +1,10 @@
+{
+  "default-output": "out",
+  "default-store-path": "/nix/store/j9s9m0sl6r6a8fyd5qzv8m8v3v3yrv93-simple-ia",
+  "drv-path": "/nix/store/i1iwgvf1414zn9ah3jnbj9dcji70vhpq-simple-ia.drv",
+  "name": "simple-ia",
+  "outputs": {
+    "out": "/nix/store/j9s9m0sl6r6a8fyd5qzv8m8v3v3yrv93-simple-ia"
+  },
+  "refs": []
+}
