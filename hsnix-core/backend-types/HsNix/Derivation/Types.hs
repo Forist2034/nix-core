@@ -5,12 +5,13 @@ module HsNix.Derivation.Types (
   StorePathName (storePathNameText),
   validStorePathName,
   makeStorePathName,
-  makeStorePathNameOrFail,
+  makeStorePathNameThrow,
   OutputName (outputNameText),
   validOutputName,
   makeOutputName,
-  makeOutputNameOrFail,
+  makeOutputNameThrow,
   DerivType (..),
+  defaultFixedOutput,
   Reference (..),
   DerivationArg (..),
   defaultDrvArg,
@@ -38,6 +39,14 @@ data DerivType a
   deriving (Show, Eq, Generic)
 
 instance Hashable (DerivType a)
+
+defaultFixedOutput :: HashMode -> Hash a -> DerivType a
+defaultFixedOutput hm h =
+  FixedOutput
+    { drvImpureEnvs = [],
+      drvHashMode = hm,
+      drvHash = h
+    }
 
 data Reference sp
   = RefSelf OutputName

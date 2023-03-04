@@ -4,7 +4,7 @@ module HsNix.Internal.StorePathName (
   StorePathName (..),
   validStorePathName,
   makeStorePathName,
-  makeStorePathNameOrFail,
+  makeStorePathNameThrow,
 ) where
 
 import Data.Char
@@ -33,8 +33,8 @@ validStorePathName t
 makeStorePathName :: Text -> Either String StorePathName
 makeStorePathName t = maybe (Right (StorePathName t)) Left (validStorePathName t)
 
-makeStorePathNameOrFail :: HasCallStack => Text -> StorePathName
-makeStorePathNameOrFail t =
+makeStorePathNameThrow :: HasCallStack => Text -> StorePathName
+makeStorePathNameThrow t =
   case validStorePathName t of
     Nothing -> StorePathName t
     Just e -> error ("Invalid StoreName: " ++ e)

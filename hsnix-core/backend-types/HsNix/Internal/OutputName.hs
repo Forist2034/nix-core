@@ -4,7 +4,7 @@ module HsNix.Internal.OutputName (
   OutputName (..),
   validOutputName,
   makeOutputName,
-  makeOutputNameOrFail,
+  makeOutputNameThrow,
 ) where
 
 import Data.Hashable (Hashable)
@@ -21,8 +21,8 @@ validOutputName = validStorePathName
 makeOutputName :: Text -> Either String OutputName
 makeOutputName t = maybe (Right (OutputName t)) Left (validOutputName t)
 
-makeOutputNameOrFail :: HasCallStack => Text -> OutputName
-makeOutputNameOrFail t =
+makeOutputNameThrow :: HasCallStack => Text -> OutputName
+makeOutputNameThrow t =
   case validOutputName t of
     Nothing -> OutputName t
     Just e -> error ("Invalid output name " ++ show t ++ ": " ++ e)
