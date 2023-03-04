@@ -9,7 +9,7 @@ module Derivation.InputAddressedSpec (
 import Derivation.MultiOutput
 import Derivation.Test
 import HsNix.Derivation.Backend
-import HsNix.Derivation.Types
+import HsNix.Derivation.DerivationArgs
 import HsNix.Hash
 import SrcInputSpec hiding (spec)
 import Test.Hspec

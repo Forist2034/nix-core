@@ -15,7 +15,7 @@ signature HsNix.Derivation.Backend (
 import Data.ByteString (ByteString)
 import Data.Hashable (Hashable)
 import Data.Text (Text)
-import HsNix.Derivation.Types
+import HsNix.Derivation.DerivationArgs
 import HsNix.Hash
 import HsNix.DrvStr
 import HsNix.StorePath

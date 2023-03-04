@@ -51,8 +51,10 @@ library
         HsNix.Derivation.Backend
         HsNix.DrvDirect.Instantiate
         HsNix.DrvDirect.Internal.Types
-        HsNix.DrvStr
-        HsNix.DrvStr.Builder
+
+    reexported-modules:
+        HsNix.DrvStr,
+        HsNix.DrvStr.Builder,
         HsNix.StorePath
 
     hs-source-dirs:     src
@@ -79,7 +81,26 @@ library
         nix-archive,
         hnix-store-core ^>=0.6,
         hnix-store-remote ^>=0.6,
-        hsnix-core:backend-types
+        hsnix-core:{core-types, derivation-types},
+        hsnix-drv:storepath
+
+library storepath
+    exposed-modules:
+        HsNix.DrvStr
+        HsNix.DrvStr.Builder
+        HsNix.StorePath
+
+    hs-source-dirs:   storepath
+    default-language: Haskell2010
+    ghc-options:
+        -Wall -Wcompat -Widentities -Wincomplete-record-updates
+        -Wincomplete-uni-patterns -Wmissing-export-lists
+        -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+
+    build-depends:
+        base >=4.15 && <4.18,
+        text ^>=2.0,
+        hashable
 
 test-suite spec
     type:               exitcode-stdio-1.0
@@ -117,7 +138,7 @@ test-suite spec
         nix-archive,
         hnix-store-core,
         hsnix-drv,
-        hsnix-core:backend-types
+        hsnix-core:{core-types, derivation-types}
 
 test-suite signature
     type:             exitcode-stdio-1.0

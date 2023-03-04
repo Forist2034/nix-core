@@ -11,7 +11,7 @@ import qualified Data.List.NonEmpty as NEL
 import Derivation.MultiOutput
 import Derivation.Test
 import HsNix.Derivation.Backend
-import HsNix.Derivation.Types
+import HsNix.Derivation.DerivationArgs
 import HsNix.Hash
 import HsNix.Internal.OutputName
 import SrcInputSpec hiding (spec)

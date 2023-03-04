@@ -8,7 +8,7 @@ module Derivation.FixedOutputSpec (
 
 import Derivation.Test
 import HsNix.Derivation.Backend
-import HsNix.Derivation.Types
+import HsNix.Derivation.DerivationArgs
 import HsNix.Hash
 import SrcInputSpec hiding (spec)
 import Test.Hspec

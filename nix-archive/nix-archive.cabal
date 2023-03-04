@@ -20,7 +20,7 @@ library
     ghc-options:
         -Wall -Wcompat -Widentities -Wincomplete-record-updates
         -Wincomplete-uni-patterns -Wmissing-export-lists
-        -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -O2
+        -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
 
     build-depends:
         base >=4.15 && <4.18,
@@ -42,7 +42,7 @@ test-suite spec
     ghc-options:
         -Wall -Wcompat -Widentities -Wincomplete-record-updates
         -Wincomplete-uni-patterns -Wmissing-export-lists
-        -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -O2
+        -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
 
     build-depends:
         base >=4.15 && <4.18,

@@ -1,0 +1,30 @@
+cabal-version: 3.4
+name:          project-config
+version:       0.1.0.0
+license:       MIT
+license-file:  LICENSE
+maintainer:    dariankline@outlook.com
+author:        Jose Lane
+build-type:    Simple
+
+executable config
+    main-is:            Main.hs
+    hs-source-dirs:     app
+    other-modules:
+        Lib.HsNixCore
+        Lib.HsNixDrv
+        Lib.NixArchive
+        Utils
+
+    default-language:   Haskell2010
+    default-extensions: QuasiQuotes OverloadedStrings
+    ghc-options:        -Wall
+    build-depends:
+        base ^>=4.17.0.0,
+        containers,
+        directory,
+        filepath,
+        Cabal-hs,
+        Cabal,
+        Cabal-syntax,
+        cabal-install

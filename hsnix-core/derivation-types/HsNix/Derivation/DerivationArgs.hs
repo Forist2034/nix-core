@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# OPTIONS_GHC -Wno-partial-fields #-}
 
-module HsNix.Derivation.Types (
+module HsNix.Derivation.DerivationArgs (
   StorePathName (storePathNameText),
   validStorePathName,
   makeStorePathName,

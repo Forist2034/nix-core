@@ -11,7 +11,7 @@ import Data.ByteString (ByteString)
 import qualified Data.HashMap.Strict as HM
 import Data.Hashable
 import Data.Text (Text)
-import qualified HsNix.Derivation.Types as DT
+import qualified HsNix.Derivation.DerivationArgs as DT
 import HsNix.DrvStr
 import qualified HsNix.Internal.OutputName as ON
 import qualified HsNix.StorePath as SP

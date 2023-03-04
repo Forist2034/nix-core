@@ -1,0 +1,6 @@
+packages: .
+
+source-repository-package
+  type: git
+  location: https://github.com/Forist2034/Cabal-hs
+  tag: da9808854efcd1850054bff3178a6f10c6420547

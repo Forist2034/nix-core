@@ -26,8 +26,8 @@ import Data.Functor
 import qualified Data.HashMap.Strict as HM
 import qualified Data.HashSet as HS
 import qualified HsNix.Derivation.Backend as B
-import HsNix.Derivation.Types as EDT hiding (DerivationArg)
-import qualified HsNix.Derivation.Types as DT
+import HsNix.Derivation.DerivationArgs as EDT hiding (DerivationArg)
+import qualified HsNix.Derivation.DerivationArgs as DT
 import HsNix.DrvStr
 import HsNix.Hash
 import HsNix.Internal.Derivation

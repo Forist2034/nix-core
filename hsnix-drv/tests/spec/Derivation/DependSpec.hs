@@ -3,7 +3,7 @@ module Derivation.DependSpec (spec) where
 import Derivation.MultiOutput
 import Derivation.Test
 import HsNix.Derivation.Backend
-import HsNix.Derivation.Types
+import HsNix.Derivation.DerivationArgs
 import HsNix.Hash
 import Test.Hspec
 
