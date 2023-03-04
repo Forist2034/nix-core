@@ -21,12 +21,7 @@ simpleFOD :: Derivation
 simpleFOD =
   derivation
     ( (simpleDrvArg "simple-fod" "builder")
-        { drvType =
-            FixedOutput
-              { drvImpureEnvs = [],
-                drvHashMode = HashRecursive,
-                drvHash = simpleHash
-              }
+        { drvType = simpleFixedOutput HashRecursive
         }
     )
     []

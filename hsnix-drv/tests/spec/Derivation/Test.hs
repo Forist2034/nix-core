@@ -85,12 +85,7 @@ simpleHash :: Hash SHA256
 simpleHash = Hash (hashWith @ByteString SHA256 "1234567")
 
 simpleFixedOutput :: HashMode -> DerivType SHA256
-simpleFixedOutput t =
-  FixedOutput
-    { drvImpureEnvs = [],
-      drvHashMode = t,
-      DT.drvHash = simpleHash
-    }
+simpleFixedOutput t = defaultFixedOutput t simpleHash
 
 addDrvDep :: Text -> Derivation -> DerivationArg a -> DerivationArg a
 addDrvDep prefix d da =

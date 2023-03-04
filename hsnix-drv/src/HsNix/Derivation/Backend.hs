@@ -111,8 +111,15 @@ drvOutputPath d (Just o) =
 toBase16Text :: Digest a -> Text
 toBase16Text = TE.decodeASCII . BAE.convertToBase BAE.Base16
 
-toEnv :: forall a. NamedHashAlgo a => DerivationArg a -> M.Map Text Text
-toEnv da =
+listToStr :: [Text] -> Text
+listToStr = T.intercalate " "
+
+hashModeToStr :: HashMode -> Text
+hashModeToStr HashFlat = "flat"
+hashModeToStr HashRecursive = "recursive"
+
+toEnv :: DerivationArg a -> [(Text, Text)] -> M.Map Text Text
+toEnv da out =
   M.fromList
     ( concat
         [ [ ("name", SPN.storePathNameText (DT.drvName da)),
@@ -133,24 +140,7 @@ toEnv da =
             )
             | not (null (DT.drvExportReferencesGraph da))
           ],
-          case DT.drvType da of
-            DT.InputAddressed ons ->
-              [("outputs", listToStr (coerce (NEL.toList ons)))]
-            DT.FixedOutput
-              { DT.drvImpureEnvs = env,
-                DT.drvHashMode = m,
-                DT.drvHash = Hash h
-              } ->
-                ("outputs", "out")
-                  : ("outputHashAlgo", hashAlgoName @a Proxy)
-                  : ("outputHashMode", hashModeToStr m)
-                  : ("outputHash", toBase16Text h)
-                  : [("impureEnvs", listToStr env) | not (null env)]
-            DT.ContentAddressed m ons ->
-              [ ("outputs", listToStr (coerce (NEL.toList ons))),
-                ("outputHashAlgo", hashAlgoName @a Proxy),
-                ("outputHashMode", hashModeToStr m)
-              ],
+          out,
           refsToStr "allowedReferences" (DT.drvAllowedReferences da),
           refsToStr "allowedRequisites" (DT.drvAllowedRequisites da),
           refsToStr "disallowedReferences" (DT.drvDisallowedReferences da),
@@ -158,16 +148,9 @@ toEnv da =
         ]
     )
   where
-    listToStr :: [Text] -> Text
-    listToStr = T.intercalate " "
-
     boolToStr :: Bool -> Text
     boolToStr True = "1"
     boolToStr False = T.empty
-
-    hashModeToStr :: HashMode -> Text
-    hashModeToStr HashFlat = "flat"
-    hashModeToStr HashRecursive = "recursive"
 
     refsToStr :: Text -> Maybe [DT.Reference SP.StorePath] -> [(Text, Text)]
     refsToStr _ Nothing = []
@@ -249,13 +232,13 @@ downstreamPlaceholder n StorePath {storePathHash = StorePathHashPart h} o =
       )
 
 mkPreDrv ::
-  NamedHashAlgo a =>
   DerivationArg a ->
+  [(Text, Text)] ->
   [(Text, ND.DerivationOutput Text Text)] ->
   [(Derivation, [Maybe ON.OutputName])] ->
   [SrcInput] ->
   ND.Derivation Text Text
-mkPreDrv da os di si =
+mkPreDrv da oe os di si =
   ND.Derivation
     { ND.outputs = M.fromList os,
       ND.inputDrvs = toInputDrv di,
@@ -263,7 +246,7 @@ mkPreDrv da os di si =
       ND.platform = systemName (DT.drvSystem da),
       ND.builder = coerce (DT.drvBuilder da),
       ND.args = V.fromList (coerce (DT.drvArgs da)),
-      ND.env = toEnv da
+      ND.env = toEnv da oe
     }
   where
     toInputDrv =
@@ -329,6 +312,7 @@ derivation
         preDrv =
           mkPreDrv
             da
+            [("outputs", listToStr (coerce os))]
             ( let emptyOut =
                     ND.DerivationOutput
                       { ND.path = T.empty,
@@ -417,65 +401,79 @@ derivation
               hsh
               (StorePathName (outputPathName n o))
           )
-derivation da@DT.DerivationArg {DT.drvType = DT.FixedOutput _ mode (Hash h)} si di =
-  let hashAlg = toAlgoId (hashAlgoName @a Proxy) mode
-      storePathTxt =
-        storePathToText
-          ( makeFixedOutputPath
-              storeRoot
-              ( case mode of
-                  HashFlat -> False
-                  HashRecursive -> True
-              )
-              (coerce h :: Digest (AlgoWrapper a))
-              (coerce (DT.drvName da))
-          )
-      drvTxt =
-        builderToText
-          ( buildTxtDerivation
-              ( addEnv
-                  [("out", storePathTxt)]
-                  ( mkPreDrv
-                      da
-                      [ ( "out",
-                          ND.DerivationOutput
-                            { ND.path = storePathTxt,
-                              ND.hashAlgo = hashAlg,
-                              ND.hash = T.pack (show h)
-                            }
-                        )
-                      ]
-                      di
-                      si
-                  )
-              )
-          )
-      ref = toRefs si di
-      dPath = getDrvPath (DT.drvName da) drvTxt ref
-   in Derivation
-        { drvName = SPN.storePathNameText (DT.drvName da),
-          drvText = drvTxt,
-          drvPath = dPath,
-          drvPathText = storePathToText dPath,
-          drvHash =
-            toBase16Text
-              ( hashWith
-                  SHA256
-                  ( BS.intercalate
-                      ":"
-                      [ "fixed:out",
-                        TE.encodeUtf8 hashAlg,
-                        BAE.convertToBase BAE.Base16 h,
-                        TE.encodeUtf8 storePathTxt
-                      ]
-                  )
-              ),
-          drvHashType = RegularHash,
-          drvRefs = ref,
-          drvDefaultOut = ON.OutputName "out",
-          drvDefaultSPText = storePathTxt,
-          drvOutput = HM.singleton (ON.OutputName "out") storePathTxt
-        }
+derivation
+  da@DT.DerivationArg
+    { DT.drvType =
+        DT.FixedOutput
+          { DT.drvImpureEnvs = ie,
+            DT.drvHashMode = mode,
+            DT.drvHash = Hash h
+          }
+    }
+  si
+  di =
+    let hashAlg = toAlgoId (hashAlgoName @a Proxy) mode
+        storePathTxt =
+          storePathToText
+            ( makeFixedOutputPath
+                storeRoot
+                ( case mode of
+                    HashFlat -> False
+                    HashRecursive -> True
+                )
+                (coerce h :: Digest (AlgoWrapper a))
+                (coerce (DT.drvName da))
+            )
+        drvTxt =
+          builderToText
+            ( buildTxtDerivation
+                ( mkPreDrv
+                    da
+                    ( ("outputs", "out")
+                        : ("out", storePathTxt)
+                        : ("outputHashAlgo", hashAlgoName @a Proxy)
+                        : ("outputHashMode", hashModeToStr mode)
+                        : ("outputHash", toBase16Text h)
+                        : [("impureEnvs", listToStr ie) | not (null ie)]
+                    )
+                    [ ( "out",
+                        ND.DerivationOutput
+                          { ND.path = storePathTxt,
+                            ND.hashAlgo = hashAlg,
+                            ND.hash = T.pack (show h)
+                          }
+                      )
+                    ]
+                    di
+                    si
+                )
+            )
+        ref = toRefs si di
+        dPath = getDrvPath (DT.drvName da) drvTxt ref
+     in Derivation
+          { drvName = SPN.storePathNameText (DT.drvName da),
+            drvText = drvTxt,
+            drvPath = dPath,
+            drvPathText = storePathToText dPath,
+            drvHash =
+              toBase16Text
+                ( hashWith
+                    SHA256
+                    ( BS.intercalate
+                        ":"
+                        [ "fixed:out",
+                          TE.encodeUtf8 hashAlg,
+                          BAE.convertToBase BAE.Base16 h,
+                          TE.encodeUtf8 storePathTxt
+                        ]
+                    )
+                ),
+            drvHashType = RegularHash,
+            drvRefs = ref,
+            drvDefaultOut = ON.OutputName "out",
+            drvDefaultSPText = storePathTxt,
+            drvOutput = HM.singleton (ON.OutputName "out") storePathTxt
+          }
 derivation
   da@DT.DerivationArg
     { DT.drvName = dn,
@@ -485,23 +483,26 @@ derivation
   di =
     let os = NEL.toList ons
         drv =
-          addEnv
-            (fmap (\(ON.OutputName o) -> (o, hashPlaceHolder o)) os)
-            ( mkPreDrv
-                da
-                ( let drvOutSpec =
-                        ND.DerivationOutput
-                          { ND.path = T.empty,
-                            ND.hashAlgo = toAlgoId (hashAlgoName @a Proxy) mode,
-                            ND.hash = T.empty
-                          }
-                   in fmap
-                        (\o -> (ON.outputNameText o, drvOutSpec))
-                        os
-                )
-                di
-                si
+          mkPreDrv
+            da
+            ( ("outputs", listToStr (coerce os))
+                : ("outputHashAlgo", hashAlgoName @a Proxy)
+                : ("outputHashMode", hashModeToStr mode)
+                : fmap (\(ON.OutputName o) -> (o, hashPlaceHolder o)) os
             )
+            ( let drvOutSpec =
+                    ND.DerivationOutput
+                      { ND.path = T.empty,
+                        ND.hashAlgo = toAlgoId (hashAlgoName @a Proxy) mode,
+                        ND.hash = T.empty
+                      }
+               in fmap
+                    (\o -> (ON.outputNameText o, drvOutSpec))
+                    os
+            )
+            di
+            si
+
         drvTxt = builderToText (buildTxtDerivation drv)
         ref = toRefs si di
         dPath = getDrvPath dn drvTxt ref
