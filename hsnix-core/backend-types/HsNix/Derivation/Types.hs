@@ -2,11 +2,11 @@
 {-# OPTIONS_GHC -Wno-partial-fields #-}
 
 module HsNix.Derivation.Types (
-  StorePathName,
+  StorePathName (storePathNameText),
   validStorePathName,
   makeStorePathName,
   makeStorePathNameOrFail,
-  OutputName,
+  OutputName (outputNameText),
   validOutputName,
   makeOutputName,
   makeOutputNameOrFail,
