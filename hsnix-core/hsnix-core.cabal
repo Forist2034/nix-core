@@ -12,6 +12,11 @@ library
         HsNix.Derivation
         HsNix.Internal.Derivation
 
+    reexported-modules:
+        HsNix.Derivation.Types,
+        HsNix.Hash,
+        HsNix.System
+
     signatures:
         HsNix.Derivation.Backend
         HsNix.DrvStr

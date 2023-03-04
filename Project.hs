@@ -18,6 +18,7 @@ import Distribution.Client.Types.AllowNewer
 import Distribution.Compat.NonEmptySet qualified as NES
 import Distribution.Compiler
 import Distribution.License
+import Distribution.ModuleName hiding (main)
 import Distribution.PackageDescription
 import Distribution.Simple.InstallDirs
 import Distribution.Simple.Setup
@@ -115,6 +116,14 @@ nixArchive = do
         }
     )
 
+simpleReexport :: ModuleName -> ModuleReexport
+simpleReexport m =
+  ModuleReexport
+    { moduleReexportOriginalPackage = Nothing,
+      moduleReexportOriginalName = m,
+      moduleReexportName = m
+    }
+
 unConditionalSubLib ::
   Library ->
   (UnqualComponentName, CondTree ConfVar [Dependency] Library)
@@ -158,7 +167,15 @@ hsnixCore =
         lib <-
           addLibraryMod
             ( emptyLibrary
-                { libBuildInfo =
+                { reexportedModules =
+                    mapMaybe
+                      ( \m ->
+                          if "Internal" `elem` components m -- not reexport internal modules
+                            then Nothing
+                            else Just (simpleReexport m)
+                      )
+                      (exposedModules backendType),
+                  libBuildInfo =
                     (simpleBuildInfo "src" mempty)
                       { defaultExtensions = commonExt,
                         targetBuildDepends =
