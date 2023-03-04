@@ -412,7 +412,8 @@ derivation
     }
   si
   di =
-    let hashAlg = toAlgoId (hashAlgoName @a Proxy) mode
+    let ON.OutputName o = ON.fodOutputName
+        hashAlg = toAlgoId (hashAlgoName @a Proxy) mode
         storePathTxt =
           storePathToText
             ( makeFixedOutputPath
@@ -429,14 +430,14 @@ derivation
             ( buildTxtDerivation
                 ( mkPreDrv
                     da
-                    ( ("outputs", "out")
-                        : ("out", storePathTxt)
+                    ( ("outputs", o)
+                        : (o, storePathTxt)
                         : ("outputHashAlgo", hashAlgoName @a Proxy)
                         : ("outputHashMode", hashModeToStr mode)
                         : ("outputHash", toBase16Text h)
                         : [("impureEnvs", listToStr ie) | not (null ie)]
                     )
-                    [ ( "out",
+                    [ ( o,
                         ND.DerivationOutput
                           { ND.path = storePathTxt,
                             ND.hashAlgo = hashAlg,
@@ -470,9 +471,9 @@ derivation
                 ),
             drvHashType = RegularHash,
             drvRefs = ref,
-            drvDefaultOut = ON.OutputName "out",
+            drvDefaultOut = ON.fodOutputName,
             drvDefaultSPText = storePathTxt,
-            drvOutput = HM.singleton (ON.OutputName "out") storePathTxt
+            drvOutput = HM.singleton ON.fodOutputName storePathTxt
           }
 derivation
   da@DT.DerivationArg

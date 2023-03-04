@@ -2,6 +2,7 @@
 
 module HsNix.Internal.OutputName (
   OutputName (..),
+  fodOutputName,
   validOutputName,
   makeOutputName,
   makeOutputNameThrow,
@@ -14,6 +15,9 @@ import HsNix.Internal.StorePathName
 
 newtype OutputName = OutputName {outputNameText :: Text}
   deriving (Show, Eq, Ord, Hashable)
+
+fodOutputName :: OutputName
+fodOutputName = OutputName "out"
 
 validOutputName :: Text -> Maybe String
 validOutputName = validStorePathName

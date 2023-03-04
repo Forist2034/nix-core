@@ -7,6 +7,7 @@ module HsNix.Derivation.Types (
   makeStorePathName,
   makeStorePathNameThrow,
   OutputName (outputNameText),
+  fodOutputName,
   validOutputName,
   makeOutputName,
   makeOutputNameThrow,
