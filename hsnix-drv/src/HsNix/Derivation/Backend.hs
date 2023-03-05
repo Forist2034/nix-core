@@ -39,6 +39,7 @@ import qualified Data.Text.Lazy.Builder as LTB
 import qualified Data.Text.Lazy.Encoding as LTE
 import qualified Data.Vector as V
 import qualified HsNix.Derivation.DerivationArgs as DT
+import qualified HsNix.Derivation.FetchUrlArg as DT
 import HsNix.DrvDirect.Internal.Hash
 import HsNix.DrvDirect.Internal.Types
 import HsNix.DrvStr

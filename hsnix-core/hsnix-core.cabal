@@ -14,6 +14,8 @@ library
 
     reexported-modules:
         HsNix.Hash,
+        HsNix.OutputName,
+        HsNix.StorePathName,
         HsNix.System
 
     signatures:         HsNix.Derivation.Backend
@@ -42,6 +44,8 @@ library core-types
         HsNix.Internal.OutputName
         HsNix.Internal.StorePathName
         HsNix.Internal.System
+        HsNix.OutputName
+        HsNix.StorePathName
         HsNix.System
 
     visibility:         public
@@ -82,7 +86,10 @@ library storepath-sig
         hashable ^>=1.4.2
 
 library derivation-types
-    exposed-modules:    HsNix.Derivation.DerivationArgs
+    exposed-modules:
+        HsNix.Derivation.DerivationArgs
+        HsNix.Derivation.FetchUrlArg
+
     visibility:         public
     hs-source-dirs:     derivation-types
     default-language:   Haskell2010

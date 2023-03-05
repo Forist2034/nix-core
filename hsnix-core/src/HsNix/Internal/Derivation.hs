@@ -17,7 +17,7 @@ import Data.Hashable
 import qualified Data.Vector as V
 import GHC.Generics (Generic)
 import qualified HsNix.Derivation.Backend as B
-import HsNix.Derivation.DerivationArgs
+import HsNix.OutputName
 
 type SrcInput = B.SrcInput
 

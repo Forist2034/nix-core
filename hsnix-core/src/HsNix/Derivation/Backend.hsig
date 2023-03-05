@@ -16,9 +16,12 @@ import Data.ByteString (ByteString)
 import Data.Hashable (Hashable)
 import Data.Text (Text)
 import HsNix.Derivation.DerivationArgs
+import HsNix.Derivation.FetchUrlArg
 import HsNix.Hash
 import HsNix.DrvStr
+import HsNix.OutputName
 import HsNix.StorePath
+import HsNix.StorePathName
 import Nix.Nar (Nar)
 
 data SrcInput

@@ -28,9 +28,11 @@ import qualified Data.HashSet as HS
 import qualified HsNix.Derivation.Backend as B
 import HsNix.Derivation.DerivationArgs as EDT hiding (DerivationArg)
 import qualified HsNix.Derivation.DerivationArgs as DT
+import HsNix.Derivation.FetchUrlArg
 import HsNix.DrvStr
 import HsNix.Hash
 import HsNix.Internal.Derivation
+import HsNix.OutputName
 import HsNix.StorePath
 
 srcStorePath :: SrcInput -> DrvM StorePath
@@ -51,14 +53,14 @@ type DerivationArg = DT.DerivationArg DrvStr StorePath
 derivation :: NamedHashAlgo a => DrvM (DerivationArg a) -> Derivation
 derivation = runDrvM B.derivation
 
-drvStorePathOf :: Derivation -> Maybe DT.OutputName -> DrvM StorePath
+drvStorePathOf :: Derivation -> Maybe OutputName -> DrvM StorePath
 drvStorePathOf d o =
   DrvM
     ( let sp = B.drvOutputPath (drvInfo d) o
        in tell (mempty {drvDrvDep = HM.singleton d (HS.singleton o)}) $> sp
     )
 
-drvStorePathStrOf :: Derivation -> Maybe DT.OutputName -> DrvM DrvStr
+drvStorePathStrOf :: Derivation -> Maybe OutputName -> DrvM DrvStr
 drvStorePathStrOf d o = storePathStr <$> drvStorePathOf d o
 
 type BdM =

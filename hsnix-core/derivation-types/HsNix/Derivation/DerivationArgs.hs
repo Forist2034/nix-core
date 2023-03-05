@@ -2,22 +2,11 @@
 {-# OPTIONS_GHC -Wno-partial-fields #-}
 
 module HsNix.Derivation.DerivationArgs (
-  StorePathName (storePathNameText),
-  validStorePathName,
-  makeStorePathName,
-  makeStorePathNameThrow,
-  OutputName (outputNameText),
-  fodOutputName,
-  validOutputName,
-  makeOutputName,
-  makeOutputNameThrow,
   DerivType (..),
   defaultFixedOutput,
   Reference (..),
   DerivationArg (..),
   defaultDrvArg,
-  FetchUrlArg (..),
-  defFetchUrlArg,
 ) where
 
 import Data.Hashable (Hashable)
@@ -26,7 +15,7 @@ import Data.Text (Text)
 import GHC.Generics
 import HsNix.Hash
 import HsNix.Internal.OutputName
-import HsNix.Internal.StorePathName
+import HsNix.StorePathName
 import HsNix.System
 
 data DerivType a
@@ -98,22 +87,4 @@ defaultDrvArg n b s =
       drvDisallowedRequisites = Nothing,
       drvPreferLocalBuild = False,
       drvAllowSubstitutes = True
-    }
-
-data FetchUrlArg a = FetchUrlArg
-  { faName :: StorePathName,
-    faUrl :: Text,
-    faOutputHash :: Hash a,
-    faIsExecutable, faUnpack :: Bool
-  }
-  deriving (Eq, Show)
-
-defFetchUrlArg :: StorePathName -> Text -> Hash a -> FetchUrlArg a
-defFetchUrlArg n u h =
-  FetchUrlArg
-    { faName = n,
-      faUrl = u,
-      faOutputHash = h,
-      faIsExecutable = False,
-      faUnpack = False
     }
