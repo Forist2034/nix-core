@@ -50,10 +50,13 @@ instantiate br =
   where
     width =
       max
-        (maximum (T.length . srcName <$> brSource br))
-        (maximum (T.length . drvName <$> brDrv br))
+        (maxL (T.length . srcName <$> brSource br))
+        (maxL (T.length . drvName <$> brDrv br))
         + 3 -- two brackets and one space
         + maximum (T.length <$> ["text", "binary", "nar", "deriv"])
+      where
+        maxL [] = 0
+        maxL x = maximum x
     putLog n t sp =
       liftIO
         ( TIO.putStrLn
