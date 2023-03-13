@@ -35,7 +35,7 @@ import Foreign.Ptr
 import GHC.Generics (Generic)
 import Language.Haskell.TH.Syntax (Lift)
 import System.Directory.OsPath
-import System.OsPath (osp)
+import System.OsPath.Posix
 import System.OsString.Internal.Types
 import System.Posix.Files.PosixString
 import System.Posix.IO.PosixString
@@ -205,9 +205,9 @@ readNar = fmap Nar . go
                 <$> readFileRaw (fromIntegral (fileSize stat)) fp
           | isDirectory stat ->
               Directory . M.fromList
-                <$> withCurrentDirectory
-                  (OsString fp)
-                  (listDirectory [osp|.|] >>= traverse (\(OsString p) -> (p,) <$> go p))
+                <$> ( listDirectory (OsString fp)
+                        >>= traverse (\(OsString p) -> (p,) <$> go (fp </> p))
+                    )
           | isSymbolicLink stat -> SymLink <$> readSymbolicLink fp
           | otherwise -> error ("Unsupported file: " <> show fp)
 
@@ -235,5 +235,5 @@ writeNar fp (Nar nar) = go fp nar
         )
     go n (Directory ent) =
       createDirectory (OsString n)
-        >> withCurrentDirectory (OsString n) (traverse_ (uncurry go) (M.toList ent))
+        >> traverse_ (\(p, e) -> go (n </> p) e) (M.toList ent)
     go n (SymLink t) = createSymbolicLink t n
