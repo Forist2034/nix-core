@@ -12,8 +12,12 @@ import qualified Data.Text.IO as TIO
 import HsNix.DrvDirect.Internal.Types
 import Nix.Nar
 import System.Nix.Nar
-import System.Nix.Store.Remote
+import System.Nix.Store.Remote hiding (runStore)
+import qualified System.Nix.Store.Remote as R
 import System.Nix.StorePath
+
+runStore :: MonadStore a -> IO (Either String a)
+runStore = fmap fst . R.runStore
 
 instantiate :: BuildResult -> MonadStore ()
 instantiate br =
@@ -44,7 +48,7 @@ instantiate br =
     traverse_
       ( \d -> do
           putLog (drvName d) "deriv" (drvPathText d)
-          addTextToStore (drvName d) (drvText d) (drvRefs d) False
+          addTextToStore (drvName d <> ".drv") (drvText d) (drvRefs d) False
       )
       (brDrv br)
   where
